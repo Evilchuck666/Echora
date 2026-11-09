@@ -23,11 +23,16 @@ The backend and the clients are separate projects that talk only through the API
 
 ---
 
-## ✨ Planned features
+## ✨ Features
 
-- **Music library**: your tracks stored on the server and described in a PostgreSQL database.
-- **Streaming API**: tracks served over HTTP with Range support, so clients can seek and start playing before the whole file has downloaded.
-- **Client-agnostic**: JSON responses only, with no behavior tied to a specific client.
+- **Your music folder is the library**: Echora reads the tags of your FLAC and MP3 files and builds a catalog of artists, albums and tracks. The folder is mounted read-only, so your files are never modified.
+- **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
+- **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
+- **Browsable API**: artists, albums and tracks with pagination and filters, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
+
+### Planned
+
+- **User accounts** with token authentication for the web client and native apps.
 
 ---
 
@@ -35,7 +40,7 @@ The backend and the clients are separate projects that talk only through the API
 
 | Part | Technologies |
 |---|---|
-| Backend (this repository) | PHP 8.5, Symfony 8.1, Doctrine ORM, PostgreSQL 16 |
+| Backend (this repository) | PHP 8.5, Symfony 8.1, API Platform 5, Doctrine ORM, PostgreSQL 16, getID3 |
 | Web server | FrankenPHP (Caddy) with automatic HTTPS and HTTP/3 |
 | Web client | React + TypeScript, in a separate repository |
 | Native apps | Planned, built on the same API |
@@ -54,11 +59,70 @@ docker compose build --pull
 docker compose up --wait
 ```
 
-The API is served at **https://localhost**. Accept the auto-generated TLS certificate the first time. Stop it with:
+The API is served at **https://localhost/api**. Accept the auto-generated TLS certificate the first time. Stop it with:
 
 ```sh
 docker compose down --remove-orphans
 ```
+
+Your music folder is mounted read-only from `~/Music`. If it lives somewhere else, start the stack with `MUSIC_DIR=/path/to/music docker compose up --wait`.
+
+---
+
+## 🎵 Your music library
+
+Import or update the library after adding, changing or deleting files:
+
+```sh
+docker compose exec php bin/console app:library:scan
+```
+
+Echora reads FLAC and MP3 files in any folder layout, and uses these tags:
+
+| Field | FLAC (Vorbis comment) | MP3 (ID3v2) | When it is missing |
+|---|---|---|---|
+| Title | `TITLE` | `TIT2` | The file name |
+| Artist | `ARTIST` | `TPE1` | The album artist, or "Unknown Artist" |
+| Album artist | `ALBUMARTIST` | `TPE2` | The artist |
+| Album | `ALBUM` | `TALB` | "Unknown Album" |
+| Year | `DATE` | `TYER` / `TDRC` | Empty |
+| Track and disc number | `TRACKNUMBER`, `DISCNUMBER` | `TRCK`, `TPOS` | Empty |
+| Genre | `GENRE` | `TCON` | Empty |
+
+Albums are grouped by album artist and title, so a compilation tagged with `ALBUMARTIST=Various Artists` stays one album while each track keeps its own artist.
+
+---
+
+## 🔌 API
+
+Open **https://localhost/api** in a browser to explore every endpoint. The OpenAPI specification is at `/api/docs.jsonopenapi`.
+
+| Endpoint | What it returns |
+|---|---|
+| `GET /api/artists` | Artists, by name. Filter: `name` |
+| `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |
+| `GET /api/tracks` | Tracks, by disc and track number. Filters: `album` (IRI), `artist` (IRI), `title`, `genre` |
+| `GET /api/{artists,albums,tracks}/{id}` | One item |
+| `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support |
+
+Responses are JSON-LD by default; send `Accept: application/json` for plain JSON.
+
+---
+
+## 🌍 Production
+
+Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images:
+
+```sh
+cp prod.env.example prod.env
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml build --pull
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml up --wait
+```
+
+`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically.
+
+> [!WARNING]
+> The API has no authentication yet: don't expose it to the internet until user accounts are in place.
 
 ---
 
@@ -83,11 +147,14 @@ To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker com
 
 ## 🧪 Tests and code quality
 
-The tests run against a separate `app_test` database. Create it once:
+The tests run against a separate `app_test` database. Create it once, and migrate it after pulling new migrations:
 
 ```sh
 docker compose exec php bin/console -e test doctrine:database:create
+docker compose exec php bin/console -e test doctrine:migrations:migrate
 ```
+
+They scan the small library in `tests/Fixtures/music` (one second of silence per file), never your own music.
 
 Then run every check the CI runs, or each one on its own:
 
@@ -105,7 +172,7 @@ GitHub Actions (`.github/workflows/ci.yaml`) builds the Docker images and runs t
 
 ## 🚧 Status
 
-Echora is in early development: the Symfony project and its Docker environment are in place, but there are no API endpoints yet.
+Echora is in early development. The library, the browsing API and streaming work; user accounts and authentication come next.
 
 ---
 

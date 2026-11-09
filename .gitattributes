@@ -15,3 +15,5 @@ composer.lock text eol=lf merge=ours
 
 *.ico binary
 *.png binary
+*.flac binary
+*.mp3 binary

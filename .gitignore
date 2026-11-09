@@ -21,3 +21,6 @@ CLAUDE.local.md
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+# Production settings for Docker Compose (see prod.env.example)
+/prod.env
