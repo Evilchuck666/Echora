@@ -147,7 +147,7 @@ The `bruno/` folder is a [Bruno](https://www.usebruno.com/) collection with ever
 
 1. Copy `bruno/.env.example` to `bruno/.env` (git-ignored) and set the username and password of your account.
 2. Open the collection: the Bruno extension for VS Code finds it on its own; in the Bruno app, use **Open Collection** and pick the `bruno/` folder.
-3. Select the **Local** environment and run **1 Auth / Sign in**. Every other request reuses the JWT it stores, and **3 Library / List tracks** remembers a track for the streaming requests.
+3. Select the **Local** environment and send any request: the collection signs in on its own when it has no valid JWT. **3 Library / List tracks** remembers a track for the streaming requests; in the VS Code extension, variables don't travel between request tabs, so use the **Runner** to chain them.
 
 `https://localhost` uses a certificate signed by Caddy's local authority. Export it and set it in Bruno under **Preferences → General → Use custom CA certificate**:
 

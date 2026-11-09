@@ -21,6 +21,7 @@ script:post-response {
   if (res.status === 200) {
     bru.setVar("token", res.body.token);
     bru.setVar("refreshToken", res.body.refresh_token);
+    bru.setVar("tokenExpiresAt", Date.now() + 55 * 60 * 1000);
   }
 }
 
