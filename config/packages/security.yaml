@@ -33,15 +33,21 @@ security:
             # Authorization: Bearer <token> on every other request.
             jwt: ~
             # POST /api/token/refresh {"refresh_token": ...} → a new token and refresh token.
+            # check_path is the path, not the route name: the bundle documents it in OpenAPI as written.
+            # Concurrent refreshes with the same token are serialized by App\Security\RefreshTokenLockListener.
             refresh_jwt:
-                check_path: api_refresh_token
+                check_path: /api/token/refresh
+            # POST /api/logout {"refresh_token": ...} → that refresh token is deleted (invalidate_token_on_logout,
+            # on by default), so the session it belongs to can't be renewed. Needs no JWT: it may have expired.
+            logout:
+                path: api_logout
 
     # Note: Only the *first* matching rule is applied
     access_control:
         # API documentation (Swagger UI, OpenAPI, JSON-LD contexts): describes the API, holds no data.
         - { path: '^/api$', roles: PUBLIC_ACCESS }
         - { path: '^/api/(docs|contexts)(/|\.|$)', roles: PUBLIC_ACCESS }
-        - { path: '^/api/(auth|token/refresh)$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/(auth|token/refresh|logout)$', roles: PUBLIC_ACCESS }
         # Checked by LibraryFiles::denyUnlessAuthorized(): a JWT or a signed URL (players and <img> can't send headers).
         - { path: '^/api/tracks/[^/]+/stream$', roles: PUBLIC_ACCESS }
         - { path: '^/api/albums/[^/]+/cover$', roles: PUBLIC_ACCESS }

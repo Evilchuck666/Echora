@@ -126,7 +126,8 @@ Open **https://localhost/api** in a browser to explore every endpoint. The OpenA
 
 1. `POST /api/auth` with `{"username": "...", "password": "..."}` returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days).
 2. Send the JWT on every request: `Authorization: Bearer <token>`. In the documentation page, use the **Authorize** button.
-3. Before it expires, `POST /api/token/refresh` with `{"refresh_token": "..."}` returns a new pair. Each refresh token works once; presenting one that was already used signs that session out, as it may have been stolen.
+3. Before it expires, `POST /api/token/refresh` with `{"refresh_token": "..."}` returns a new pair. Each refresh token works once; presenting one that was already used signs that session out, as it may have been stolen. That includes two requests sending the same token at once: only one gets a new pair, so a client running in several places at the same time (e.g. browser tabs) has to let only one of them refresh.
+4. To sign out, `POST /api/logout` with `{"refresh_token": "..."}`: the session can't be renewed any more. It needs no JWT, so it also works once the JWT has expired. A JWT already issued keeps working until it expires (one hour at most).
 
 Every track includes a `streamUrl`: a signed link to its audio, valid for six hours, that works without the `Authorization` header. Use it as the `src` of an `<audio>` element or hand it to a native media player. When it expires, fetch the track again for a new one.
 
@@ -138,6 +139,7 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, or 
 |---|---|
 | `POST /api/auth` | A JWT and a refresh token |
 | `POST /api/token/refresh` | A new JWT and refresh token |
+| `POST /api/logout` | Invalidates a refresh token (signs that session out) |
 | `GET /api/me` | The authenticated account |
 | `GET /api/artists` | Artists, by name. Filter: `name` |
 | `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |

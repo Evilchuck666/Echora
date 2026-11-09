@@ -1,0 +1,36 @@
+meta {
+  name: Sign out
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/logout
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refresh_token": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("token", "");
+    bru.setVar("refreshToken", "");
+    bru.setVar("tokenExpiresAt", 0);
+  }
+}
+
+tests {
+  test("invalidates the refresh token", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.message).to.be.a("string");
+  });
+}
+
+docs {
+  Signs out: invalidates the stored refresh token, so this session can't get new JWTs. Needs no JWT. The JWT already issued keeps working until it expires (one hour at most); the next request signs in again.
+}

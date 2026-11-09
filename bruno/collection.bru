@@ -11,12 +11,12 @@ script:pre-request {
   // each request tab keeps its own variables there, so the token stored by "Sign in"
   // in one tab is not visible from the others. Elsewhere it simply renews an expired token.
   //
-  // Sign in, Refresh and the signed URLs (streamUrl, coverUrl) don't send the JWT. They are told apart by
+  // Sign in, Refresh, Sign out and the signed URLs (streamUrl, coverUrl) don't send the JWT. They are told apart by
   // URL, not with req.getAuthMode(): the VS Code extension adds the Authorization header
   // after this script runs, so getAuthMode() always answers "none" there. The URL can
   // still hold unresolved variables at this point ("{{baseUrl}}/api/auth", "{{coverUrl}}").
   const url = req.getUrl();
-  const sendsToken = !/\/api\/(auth|token\/refresh)\b/.test(url) && !/\{\{(streamUrl|coverUrl)\}\}/.test(url) && !url.includes("_hash=");
+  const sendsToken = !/\/api\/(auth|token\/refresh|logout)\b/.test(url) && !/\{\{(streamUrl|coverUrl)\}\}/.test(url) && !url.includes("_hash=");
   const expiresAt = Number(bru.getVar("tokenExpiresAt") || 0);
 
   if (sendsToken && (!bru.getVar("token") || Date.now() >= expiresAt)) {
@@ -42,7 +42,7 @@ docs {
 
   1. Copy `bruno/.env.example` to `bruno/.env` and set your username and password.
   2. Select the **Local** environment.
-  3. Send any request: the collection signs in on its own when it has no valid JWT (see the collection script). **1 Auth / Sign in** and **1 Auth / Refresh** are there to try those endpoints.
+  3. Send any request: the collection signs in on its own when it has no valid JWT (see the collection script). **1 Auth / Sign in**, **Refresh** and **Sign out** are there to try those endpoints.
 
   **3 Library / List albums** and **List tracks** remember the first album (`albumIri`, `coverUrl`) and track (`trackId`, `streamUrl`) they return, for the requests that come after them. In the VS Code extension, variables don't travel between request tabs: run the collection with the Runner to chain them.
 

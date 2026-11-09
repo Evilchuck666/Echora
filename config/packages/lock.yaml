@@ -1,0 +1,4 @@
+# Locks shared by every PHP process: compose.yaml points LOCK_DSN to PostgreSQL advisory locks.
+# Used by App\Security\RefreshTokenLockListener to serialize refreshes of the same token.
+framework:
+    lock: '%env(LOCK_DSN)%'

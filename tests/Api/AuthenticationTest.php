@@ -109,6 +109,58 @@ final class AuthenticationTest extends ApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testSigningOutInvalidatesTheRefreshToken(): void
+    {
+        $session = $this->signIn();
+
+        $this->client->request('POST', '/api/logout', ['json' => ['refresh_token' => $session['refresh_token']]]);
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains(['message' => 'The supplied refresh_token has been invalidated.']);
+
+        $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $session['refresh_token']]]);
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testSigningOutTwiceIsNotAnError(): void
+    {
+        $session = $this->signIn();
+        $this->client->request('POST', '/api/logout', ['json' => ['refresh_token' => $session['refresh_token']]]);
+
+        $this->client->request('POST', '/api/logout', ['json' => ['refresh_token' => $session['refresh_token']]]);
+
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains(['message' => 'The supplied refresh_token is already invalid.']);
+    }
+
+    public function testSigningOutLeavesOtherSessionsAlone(): void
+    {
+        $phone = $this->signIn();
+        $laptop = $this->signIn();
+
+        $this->client->request('POST', '/api/logout', ['json' => ['refresh_token' => $phone['refresh_token']]]);
+
+        $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $laptop['refresh_token']]]);
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testSigningOutNeedsARefreshToken(): void
+    {
+        $this->client->request('POST', '/api/logout', ['json' => []]);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testTheDocumentationListsTheAuthenticationEndpointsByPath(): void
+    {
+        $paths = $this->client->request('GET', '/api/docs', ['headers' => ['Accept' => 'application/vnd.openapi+json']])->toArray()['paths'];
+
+        self::assertIsArray($paths);
+        self::assertArrayHasKey('/api/auth', $paths);
+        self::assertArrayHasKey('/api/token/refresh', $paths);
+        self::assertArrayHasKey('/api/logout', $paths);
+        self::assertArrayNotHasKey('api_refresh_token', $paths, 'The refresh endpoint is documented by its path, not its route name.');
+    }
+
     /**
      * @return array{token: string, refresh_token: string}
      */
