@@ -1,0 +1,30 @@
+meta {
+  name: Search
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/search?q=a
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: a
+  ~limit: 10
+}
+
+tests {
+  test("finds artists, albums and tracks", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.artists).to.be.an("array");
+    expect(res.body.albums).to.be.an("array");
+    expect(res.body.tracks).to.be.an("array");
+    expect(res.body.totalTracks).to.be.a("number");
+  });
+}
+
+docs {
+  Searches the whole library at once. Every word of `q` has to appear, in any order, ignoring case and accents: artists by name, albums by title or artist, tracks by title, artist or album. Each list is ranked by how well the item's own name matches and holds at most `limit` items (10 by default, 50 at most); `totalArtists`, `totalAlbums` and `totalTracks` count every match.
+}

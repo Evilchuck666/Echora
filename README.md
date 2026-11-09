@@ -29,7 +29,7 @@ The backend and the clients are separate projects that talk only through the API
 - **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
 - **Covers and lyrics**: album covers come from the album folder, lyrics from the tags.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
-- **Browsable API**: artists, albums and tracks with pagination and filters, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
+- **Browsable API**: artists, albums and tracks with pagination, filters and a search across the whole library that ignores accents, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
 - **User accounts**: sign in with a username and password, get a JWT and a refresh token that keeps apps signed in. Audio players get signed, expiring URLs, so an `<audio>` element can play tracks without sending any header.
 
 ---
@@ -144,11 +144,22 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, or 
 | `GET /api/artists` | Artists, by name. Filter: `name` |
 | `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |
 | `GET /api/tracks` | Tracks, by disc and track number. Filters: `album` (IRI), `artist` (IRI), `title`, `genre` |
+| `GET /api/search?q=...` | Artists, albums and tracks matching a search, at once (see below) |
 | `GET /api/{artists,albums,tracks}/{id}` | One item. A single track also includes its `lyrics`; lists only say `hasLyrics` |
 | `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support. Use the track's `streamUrl` |
 | `GET /api/albums/{id}/cover` | The cover image. Use the album's `coverUrl` |
 
 Responses are JSON-LD by default; send `Accept: application/json` for plain JSON.
+
+### Search
+
+`GET /api/search?q=motorhead ace` searches the whole library in one request. Every word has to appear, in any order, ignoring case and accents (`motorhead` finds Motörhead):
+
+- artists match by name, albums by title or artist, tracks by title, artist or album;
+- each list is ranked by how well the item's own name matches: the same as the query, starting with it, containing every word, then the items only found through their artist or album;
+- `artists`, `albums` and `tracks` hold at most `limit` items each (10 by default, up to 50), and `totalArtists`, `totalAlbums` and `totalTracks` count every match.
+
+The filters of the lists (`name`, `title`) still match one field, and don't ignore accents.
 
 Browsers only let web clients on other origins call the API when `CORS_ALLOW_ORIGIN` allows them. In development it allows `localhost` on any port; in production, set it in `prod.env` to the address of your web client.
 

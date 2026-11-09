@@ -64,6 +64,7 @@ final class AuthenticationTest extends ApiTestCase
         yield 'albums' => ['/api/albums'];
         yield 'tracks' => ['/api/tracks'];
         yield 'me' => ['/api/me'];
+        yield 'search' => ['/api/search?q=test'];
     }
 
     public function testAnInvalidTokenIsRejected(): void

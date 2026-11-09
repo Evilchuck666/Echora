@@ -19,6 +19,10 @@ doctrine:
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
+        dql:
+            string_functions:
+                # PostgreSQL's unaccent extension (enabled by a migration), for searches that ignore accents.
+                unaccent: App\Doctrine\Unaccent
 
 when@test:
     doctrine:

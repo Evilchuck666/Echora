@@ -19,6 +19,7 @@ Echora is the backend API for a self-hosted music streaming service: it catalogs
 - The music folder is mounted read-only at `/music` (`MUSIC_LIBRARY_PATH`; `MUSIC_DIR` on the host). Never write to it. `app:library:scan` (`LibraryScanner`) is the only way tracks get into the database.
 - Never expose a track's `path` or `fileModifiedAt`, or an album's `coverPath`: they describe the server's disk. Serialization uses explicit `*:read` groups; `track:item` (lyrics) is only for `GET /api/tracks/{id}`, to keep lists light.
 - Covers come from the album folder (`CoverFinder`), found again on every scan. When the scanner learns to read a new tag, existing tracks only get it with `app:library:scan --full`: say so in the README and the change summary.
+- `GET /api/search` (`App\ApiResource\Search`, a DTO resource with `SearchProvider`) runs `LibrarySearch`: every word must match (`LIKE`, escaped), case- and accent-insensitive through the `UNACCENT()` DQL function (`App\Doctrine\Unaccent`, PostgreSQL's `unaccent` extension, enabled by a migration). It fetches the related artists and albums in the same query; keep it that way (one count and one select per kind).
 - API Platform 5 deprecates `#[ApiFilter]`, `SearchFilter` and `OrderFilter`: filter with `#[QueryParameter]` and the per-strategy filters (`PartialSearchFilter`, `ExactFilter`, `IriFilter`, `SortFilter`). API tests extend `ApiPlatform\Test\ApiTestCase`, not the deprecated `ApiPlatform\Symfony\Bundle\Test\ApiTestCase`.
 
 ## Security
