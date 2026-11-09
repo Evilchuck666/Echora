@@ -65,9 +65,11 @@ Three specifics worth spelling out, because they are easy to get wrong:
   Start it with `docker compose up --wait` (https://localhost). Run every PHP,
   Composer and console command inside the `php` service:
   `docker compose exec php bin/console ...`, `docker compose exec php composer ...`.
-- Files created from inside the container are owned by root. After `composer
-  require` or a `make:*` command, give them back to the host user with
-  `docker compose run --rm php chown -R $(id -u):$(id -g) .`
+- Files created from inside the container are owned by root. Always run
+  `scripts/fix-permissions.sh` right after any container command that creates
+  or changes project files: `composer require/update/remove`, `bin/console make:*`,
+  `recipes:install`, and similar. It does nothing when every file already
+  belongs to the host user.
 - If a recipe changes `Dockerfile` or `compose*.yaml`, rebuild with
   `docker compose up --build --wait`.
 - When something fails, read `var/log/dev.log` and the web profiler

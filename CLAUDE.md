@@ -19,5 +19,7 @@ Echora is the backend API for a self-hosted music streaming service: it stores t
 
 ## Gotchas
 
+- A PostToolUse hook (`.claude/hooks/fix-permissions.sh`) runs `scripts/fix-permissions.sh` automatically after every Bash command containing `docker compose exec` or `docker compose run`, so don't run it by hand after those. Run it manually only if root-owned files appeared some other way.
+
 - `composer.json` declares `GPL-3.0-only`. Don't let a skeleton or recipe overwrite `LICENSE` with an MIT text: check `git diff LICENSE` after any scaffolding.
 - The database service publishes port 5432 on a random host port (`docker compose port database 5432`), because the host already runs its own PostgreSQL on 5432.

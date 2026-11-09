@@ -21,8 +21,10 @@
 **/docker-compose.yml
 **/Dockerfile
 **/Thumbs.db
+.claude/
 .github/
 docs/
+scripts/
 public/bundles/
 tests/
 var/

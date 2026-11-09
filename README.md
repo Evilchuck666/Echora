@@ -73,7 +73,7 @@ docker compose exec php composer require <package>
 On Linux, files created from inside the container belong to root. Give them back to your user with:
 
 ```sh
-docker compose run --rm php chown -R $(id -u):$(id -g) .
+./scripts/fix-permissions.sh
 ```
 
 To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
