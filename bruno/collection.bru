@@ -1,0 +1,20 @@
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+docs {
+  # Echora API
+
+  1. Copy `bruno/.env.example` to `bruno/.env` and set your username and password.
+  2. Select the **Local** environment.
+  3. Run **1 Auth / Sign in**: it stores the JWT that every other request sends.
+  4. The JWT lasts one hour: run **1 Auth / Refresh** to get a new one without the password.
+
+  **3 Library / List tracks** remembers the first track it returns (`trackId`, `streamUrl`) for the requests that come after it.
+
+  Bruno must trust the certificate of `https://localhost`: see the README of the repository.
+}

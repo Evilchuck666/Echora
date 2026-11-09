@@ -1,0 +1,27 @@
+meta {
+  name: Stream with JWT
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/tracks/{{trackId}}/stream
+  body: none
+  auth: inherit
+}
+
+headers {
+  Range: bytes=0-1023
+}
+
+tests {
+  test("returns the first KiB of the audio", function () {
+    expect(res.status).to.equal(206);
+    expect(res.headers["content-range"]).to.match(/^bytes 0-1023\//);
+    expect(res.headers["content-type"]).to.match(/^audio\//);
+  });
+}
+
+docs {
+  Asks for the first 1024 bytes of the track found by **List tracks**. Remove the Range header to download the whole file.
+}

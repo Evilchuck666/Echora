@@ -8,6 +8,7 @@
     "docker.docker",
     "ms-azuretools.vscode-containers",
     "mtxr.sqltools",
-    "mtxr.sqltools-driver-pg"
+    "mtxr.sqltools-driver-pg",
+    "bruno-api-client.bruno"
   ]
 }

@@ -1,0 +1,19 @@
+meta {
+  name: Me
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/me
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("describes the signed-in account", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.username).to.equal(bru.interpolate("{{process.env.ECHORA_USERNAME}}"));
+    expect(res.body.roles).to.include("ROLE_USER");
+  });
+}

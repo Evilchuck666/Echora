@@ -30,6 +30,8 @@ Echora is the backend API for a self-hosted music streaming service: it catalogs
 
 ## Testing
 
+- `bruno/` is a Bruno collection of every endpoint (`.bru` files, credentials in the git-ignored `bruno/.env`). Update it in the same change whenever an endpoint, a parameter or the authentication changes.
+
 - Tests scan `tests/Fixtures/music` (set in `.env.test`), never the real library. The fixtures are one-second silent files generated with ffmpeg; add new cases the same way and keep them tiny.
 - The test client doesn't capture the body of a `BinaryFileResponse`; send it to an output buffer (see `TrackStreamTest::body()`).
 - API tests authenticate with the `CreatesUsers` trait (`createUser()`, `tokenFor()`) and `$client->setDefaultOptions(['auth_bearer' => ...])`.

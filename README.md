@@ -141,6 +141,24 @@ Responses are JSON-LD by default; send `Accept: application/json` for plain JSON
 
 ---
 
+## 🧰 Trying the API with Bruno
+
+The `bruno/` folder is a [Bruno](https://www.usebruno.com/) collection with every endpoint, ready to run:
+
+1. Copy `bruno/.env.example` to `bruno/.env` (git-ignored) and set the username and password of your account.
+2. Open the collection: the Bruno extension for VS Code finds it on its own; in the Bruno app, use **Open Collection** and pick the `bruno/` folder.
+3. Select the **Local** environment and run **1 Auth / Sign in**. Every other request reuses the JWT it stores, and **3 Library / List tracks** remembers a track for the streaming requests.
+
+`https://localhost` uses a certificate signed by Caddy's local authority. Export it and set it in Bruno under **Preferences → General → Use custom CA certificate**:
+
+```sh
+docker compose cp php:/data/caddy/pki/authorities/local/root.crt ~/echora-local-ca.crt
+```
+
+To import the API into another tool instead, use `https://localhost/api/docs.jsonopenapi?spec_version=3.0.0`: by default the specification is OpenAPI 3.2, which many importers don't support yet.
+
+---
+
 ## 🌍 Production
 
 Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images and create your account:

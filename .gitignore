@@ -28,3 +28,6 @@ CLAUDE.local.md
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
+
+# Bruno credentials (see bruno/.env.example)
+/bruno/.env

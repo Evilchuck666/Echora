@@ -1,0 +1,33 @@
+meta {
+  name: List artists
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/artists
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~name: 
+  ~page: 1
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.member.length > 0) {
+    bru.setVar("artistIri", res.body.member[0]["@id"]);
+  }
+}
+
+tests {
+  test("lists artists", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.member).to.be.an("array");
+  });
+}
+
+docs {
+  Artists sorted by name. Enable `name` to search (case-insensitive, partial match). Remembers the first artist as `artistIri`.
+}

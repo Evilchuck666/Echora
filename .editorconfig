@@ -14,5 +14,9 @@ trim_trailing_whitespace = false
 [{Makefile,*.mk,**/Dockerfile,**/Caddyfile,**/*.sh}]
 indent_style = tab
 
-[{compose.*yaml,.github/**/*.yaml}]
+[{compose.*yaml,.github/**/*.yaml,*.bru}]
 indent_size = 2
+
+# Empty request parameters end in a space ("~title: "): keep it.
+[*.bru]
+trim_trailing_whitespace = false

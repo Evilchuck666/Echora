@@ -1,0 +1,18 @@
+meta {
+  name: Get track
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/tracks/{{trackId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("returns the track", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.id).to.equal(bru.getVar("trackId"));
+  });
+}

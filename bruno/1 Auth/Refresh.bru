@@ -1,0 +1,36 @@
+meta {
+  name: Refresh
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/token/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refresh_token": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("token", res.body.token);
+    bru.setVar("refreshToken", res.body.refresh_token);
+  }
+}
+
+tests {
+  test("returns a new JWT and a new refresh token", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.token).to.be.a("string");
+    expect(res.body.refresh_token).to.be.a("string");
+  });
+}
+
+docs {
+  Exchanges the refresh token for a new JWT and a new refresh token. Each refresh token works once: sending one that was already used signs the session out, and you have to sign in again.
+}
