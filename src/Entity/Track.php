@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Doctrine\Orm\Filter\ExactFilter;
 use ApiPlatform\Doctrine\Orm\Filter\IriFilter;
 use ApiPlatform\Doctrine\Orm\Filter\PartialSearchFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -91,6 +92,14 @@ class Track
      */
     #[ORM\Column(type: 'bigint')]
     private int $fileModifiedAt;
+
+    /**
+     * Signed URL of the audio, valid for a few hours, usable without an Authorization header
+     * (e.g. as the src of an <audio> element). Not stored: filled when the track is serialized.
+     */
+    #[ApiProperty(description: 'Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element')]
+    #[Groups(['track:read'])]
+    private ?string $streamUrl = null;
 
     /**
      * @param string $path Path of the audio file, relative to the music library folder. Never exposed.
@@ -184,5 +193,15 @@ class Track
     public function getFileModifiedAt(): int
     {
         return $this->fileModifiedAt;
+    }
+
+    public function getStreamUrl(): ?string
+    {
+        return $this->streamUrl;
+    }
+
+    public function setStreamUrl(string $streamUrl): void
+    {
+        $this->streamUrl = $streamUrl;
     }
 }

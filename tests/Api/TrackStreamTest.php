@@ -13,6 +13,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class TrackStreamTest extends ApiTestCase
 {
+    use CreatesUsers;
+
     protected static ?bool $alwaysBootKernel = true;
 
     private const string FILE = __DIR__.'/../Fixtures/music/Test Artist/2020 - First Album/01 - Opening.flac';
@@ -22,6 +24,7 @@ final class TrackStreamTest extends ApiTestCase
     protected function setUp(): void
     {
         $this->client = self::createClient();
+        $this->client->setDefaultOptions(['auth_bearer' => self::tokenFor(self::createUser())]);
         self::getContainer()->get(LibraryScanner::class)->scan();
     }
 

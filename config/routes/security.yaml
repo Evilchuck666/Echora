@@ -1,3 +1,12 @@
 _security_logout:
     resource: security.route_loader.logout
     type: service
+
+# Handled by the json_login and refresh_jwt authenticators of the "api" firewall.
+api_auth:
+    path: /api/auth
+    methods: [POST]
+
+api_refresh_token:
+    path: /api/token/refresh
+    methods: [POST]

@@ -10,6 +10,12 @@ services:
       APP_SECRET: ${APP_SECRET}
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
+      JWT_PASSPHRASE: ${JWT_PASSPHRASE:?Set JWT_PASSPHRASE in prod.env (see prod.env.example)}
     volumes:
       # Music library, read-only. Set MUSIC_DIR in prod.env (see prod.env.example).
       - ${MUSIC_DIR:?Set MUSIC_DIR to the folder that holds your music (see prod.env.example)}:/music:ro
+      # JWT signing keys, generated on the first start. Losing them signs everyone out.
+      - jwt_keys:/app/config/jwt
+
+volumes:
+  jwt_keys:

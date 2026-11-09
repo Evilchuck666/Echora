@@ -38,6 +38,14 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		fi
 	fi
 
+	# Key pair that signs the JWTs: created on the first start, kept afterwards
+	# (bind-mounted config/jwt in dev, the jwt_keys volume in prod).
+	if grep -q ^JWT_PASSPHRASE= .env; then
+		php bin/console lexik:jwt:generate-keypair --skip-if-exists
+		chmod 600 config/jwt/private.pem
+		chmod 644 config/jwt/public.pem
+	fi
+
 	echo 'PHP app ready!'
 fi
 

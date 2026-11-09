@@ -175,6 +175,8 @@ COPY --link --exclude=var --from=frankenphp_prod_builder /app /app
 # Group 0 + g=u for arbitrary-UID runtimes (e.g. OpenShift).
 COPY --chown=www-data:0 --from=frankenphp_prod_builder /app/var /app/var
 RUN chmod g=u /app/var
+# Holds the JWT key pair, generated on the first start (jwt_keys volume in compose.prod.yaml).
+RUN install -d -o www-data -g 0 -m 0770 /app/config/jwt
 
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 

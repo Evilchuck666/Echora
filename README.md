@@ -29,10 +29,7 @@ The backend and the clients are separate projects that talk only through the API
 - **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
 - **Browsable API**: artists, albums and tracks with pagination and filters, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
-
-### Planned
-
-- **User accounts** with token authentication for the web client and native apps.
+- **User accounts**: sign in with a username and password, get a JWT and a refresh token that keeps apps signed in. Audio players get signed, expiring URLs, so an `<audio>` element can play tracks without sending any header.
 
 ---
 
@@ -40,7 +37,7 @@ The backend and the clients are separate projects that talk only through the API
 
 | Part | Technologies |
 |---|---|
-| Backend (this repository) | PHP 8.5, Symfony 8.1, API Platform 5, Doctrine ORM, PostgreSQL 16, getID3 |
+| Backend (this repository) | PHP 8.5, Symfony 8.1, API Platform 5, Doctrine ORM, PostgreSQL 16, getID3, LexikJWT + refresh tokens |
 | Web server | FrankenPHP (Caddy) with automatic HTTPS and HTTP/3 |
 | Web client | React + TypeScript, in a separate repository |
 | Native apps | Planned, built on the same API |
@@ -66,6 +63,13 @@ docker compose down --remove-orphans
 ```
 
 Your music folder is mounted read-only from `~/Music`. If it lives somewhere else, start the stack with `MUSIC_DIR=/path/to/music docker compose up --wait`.
+
+Create your account, then import your music:
+
+```sh
+docker compose exec php bin/console app:user:create <username> --admin
+docker compose exec php bin/console app:library:scan
+```
 
 ---
 
@@ -93,17 +97,45 @@ Albums are grouped by album artist and title, so a compilation tagged with `ALBU
 
 ---
 
+## 👤 Accounts
+
+Accounts are managed from the console. Passwords are always typed in a hidden prompt, never passed as arguments, so they don't end up in your shell history.
+
+| Command | What it does |
+|---|---|
+| `app:user:create <username> [--admin]` | Creates an account |
+| `app:user:list` | Lists the accounts |
+| `app:user:password <username>` | Changes a password and signs the account out of every device |
+| `app:user:delete <username>` | Deletes an account and signs it out of every device |
+
+Run them with `docker compose exec php bin/console ...`.
+
+---
+
 ## 🔌 API
 
-Open **https://localhost/api** in a browser to explore every endpoint. The OpenAPI specification is at `/api/docs.jsonopenapi`.
+Open **https://localhost/api** in a browser to explore every endpoint. The OpenAPI specification is at `/api/docs.jsonopenapi`. Both are public; everything else needs authentication.
+
+### Authentication
+
+1. `POST /api/auth` with `{"username": "...", "password": "..."}` returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days).
+2. Send the JWT on every request: `Authorization: Bearer <token>`. In the documentation page, use the **Authorize** button.
+3. Before it expires, `POST /api/token/refresh` with `{"refresh_token": "..."}` returns a new pair. Each refresh token works once; presenting one that was already used signs that session out, as it may have been stolen.
+
+Every track includes a `streamUrl`: a signed link to its audio, valid for six hours, that works without the `Authorization` header. Use it as the `src` of an `<audio>` element or hand it to a native media player. When it expires, fetch the track again for a new one.
+
+### Endpoints
 
 | Endpoint | What it returns |
 |---|---|
+| `POST /api/auth` | A JWT and a refresh token |
+| `POST /api/token/refresh` | A new JWT and refresh token |
+| `GET /api/me` | The authenticated account |
 | `GET /api/artists` | Artists, by name. Filter: `name` |
 | `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |
 | `GET /api/tracks` | Tracks, by disc and track number. Filters: `album` (IRI), `artist` (IRI), `title`, `genre` |
 | `GET /api/{artists,albums,tracks}/{id}` | One item |
-| `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support |
+| `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support. Use the track's `streamUrl` |
 
 Responses are JSON-LD by default; send `Accept: application/json` for plain JSON.
 
@@ -111,18 +143,19 @@ Responses are JSON-LD by default; send `Accept: application/json` for plain JSON
 
 ## 🌍 Production
 
-Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images:
+Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images and create your account:
 
 ```sh
 cp prod.env.example prod.env
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml build --pull
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml up --wait
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:user:create <username> --admin
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:library:scan
 ```
 
 `prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically.
 
-> [!WARNING]
-> The API has no authentication yet: don't expose it to the internet until user accounts are in place.
+The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 
 ---
 
@@ -172,7 +205,7 @@ GitHub Actions (`.github/workflows/ci.yaml`) builds the Docker images and runs t
 
 ## 🚧 Status
 
-Echora is in early development. The library, the browsing API and streaming work; user accounts and authentication come next.
+Echora is in early development. The library, the browsing API, streaming and user accounts work; the web client is next.
 
 ---
 

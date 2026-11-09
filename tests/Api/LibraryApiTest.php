@@ -10,6 +10,8 @@ use App\Library\LibraryScanner;
 
 final class LibraryApiTest extends ApiTestCase
 {
+    use CreatesUsers;
+
     protected static ?bool $alwaysBootKernel = true;
 
     private Client $client;
@@ -17,6 +19,7 @@ final class LibraryApiTest extends ApiTestCase
     protected function setUp(): void
     {
         $this->client = self::createClient();
+        $this->client->setDefaultOptions(['auth_bearer' => self::tokenFor(self::createUser())]);
         // Scans tests/Fixtures/music (MUSIC_LIBRARY_PATH in .env.test).
         self::getContainer()->get(LibraryScanner::class)->scan();
     }

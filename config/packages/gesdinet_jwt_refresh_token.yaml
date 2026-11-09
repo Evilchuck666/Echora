@@ -1,0 +1,17 @@
+# Refresh tokens let clients get a new JWT without asking for the password again.
+gesdinet_jwt_refresh_token:
+    refresh_token_class: App\Entity\RefreshToken
+    # 30 days, started over on every refresh: a client used at least once a month stays signed in.
+    ttl: 2592000
+    # Every refresh returns a new refresh token and spends the old one.
+    single_use: true
+    # Presenting a spent token (likely stolen) revokes every token of its chain.
+    reuse_detection:
+        enabled: true
+    # Store only a hash, so a copy of the database cannot be used to refresh.
+    hash_tokens:
+        enabled: true
+        accept_stored_in_the_clear: false
+    return_expiration: true
+    api_platform:
+        enabled: true
