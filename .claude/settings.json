@@ -11,6 +11,17 @@
             "statusMessage": "Checking file ownership..."
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/php-cs-fixer.sh",
+            "timeout": 60,
+            "statusMessage": "Formatting PHP with PHP-CS-Fixer..."
+          }
+        ]
       }
     ]
   }

@@ -1,0 +1,72 @@
+---
+name: Build and tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Docker images
+        uses: docker/bake-action@v7
+        with:
+          pull: true
+          load: true
+          source: .
+          files: |
+            compose.yaml
+            compose.override.yaml
+          set: |
+            *.cache-from=type=gha,scope=${{github.ref}}
+            *.cache-from=type=gha,scope=refs/heads/main
+            *.cache-to=type=gha,scope=${{github.ref}},mode=max
+
+      - name: Start services
+        run: docker compose up --wait --no-build
+
+      - name: Check HTTP reachability
+        run: curl -v --fail-with-body http://localhost
+
+      - name: Check coding style
+        run: docker compose exec -T php composer cs
+
+      # PHPStan's Symfony extension reads the container dumped by the dev cache.
+      - name: Warm up the dev cache
+        run: docker compose exec -T php bin/console cache:warmup
+
+      - name: Run PHPStan
+        run: docker compose exec -T php composer phpstan
+
+      - name: Create test database
+        run: docker compose exec -T php bin/console -e test doctrine:database:create
+
+      - name: Run migrations
+        run: docker compose exec -T php bin/console -e test doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+      - name: Run PHPUnit
+        run: docker compose exec -T php composer test
+
+      - name: Validate the Doctrine schema
+        run: docker compose exec -T php bin/console -e test doctrine:schema:validate

@@ -87,17 +87,22 @@ Three specifics worth spelling out, because they are easy to get wrong:
 
 ## Testing
 
-Install `symfony/test-pack` if it isn't already. Functional/HTTP tests extend
-`WebTestCase`; service-level tests extend `KernelTestCase`. Run
-`docker compose exec php bin/phpunit` (falls back to `vendor/bin/phpunit`). A feature isn't done
+Functional/HTTP tests extend `WebTestCase`; service-level tests extend
+`KernelTestCase`. Run `docker compose exec php composer test`. Tests use the
+`app_test` database (create it once with
+`docker compose exec php bin/console -e test doctrine:database:create`). A feature isn't done
 until it has a test that exercises it the way a caller would, an HTTP request for
 a controller or a service call for a service, not just "it didn't throw."
 
 ## Code style
 
 Symfony's coding standard, the `@Symfony` php-cs-fixer ruleset (a PSR-12-derived
-superset). Run `docker compose exec php vendor/bin/php-cs-fixer fix` if `friendsofphp/php-cs-fixer` is
-installed; it isn't part of the skeleton by default.
+superset). Fix it with `docker compose exec php composer cs:fix`.
+
+PHPStan runs at level `max` with the Symfony, Doctrine and PHPUnit extensions.
+Fix the code instead of lowering the level, adding a baseline or ignoring
+errors. Before finishing a change, run `docker compose exec php composer check`
+(cs + phpstan + test): it is what the CI runs.
 
 ## Discover, don't guess
 

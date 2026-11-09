@@ -7,6 +7,7 @@
 ![Requires](https://img.shields.io/badge/requires-Docker%20Compose-blue)
 ![Status](https://img.shields.io/badge/status-early%20development-orange)
 [![License](https://img.shields.io/badge/license-GPLv3-green)](LICENSE)
+[![Build and tests](https://github.com/Evilchuck666/Echora/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/Evilchuck666/Echora/actions/workflows/ci.yaml)
 
 **Your own music streaming service, on your own server.**
 
@@ -77,6 +78,28 @@ On Linux, files created from inside the container belong to root. Give them back
 ```
 
 To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
+
+---
+
+## 🧪 Tests and code quality
+
+The tests run against a separate `app_test` database. Create it once:
+
+```sh
+docker compose exec php bin/console -e test doctrine:database:create
+```
+
+Then run every check the CI runs, or each one on its own:
+
+| Command | What it does |
+|---|---|
+| `docker compose exec php composer check` | Runs `cs`, `phpstan` and `test`, in that order |
+| `docker compose exec php composer cs` | Checks the coding style ([`@Symfony`](https://cs.symfony.com/doc/ruleSets/Symfony.html)) without changing files |
+| `docker compose exec php composer cs:fix` | Fixes the coding style |
+| `docker compose exec php composer phpstan` | Static analysis with [PHPStan](https://phpstan.org/) at level `max` |
+| `docker compose exec php composer test` | Runs the [PHPUnit](https://phpunit.de/) test suite |
+
+GitHub Actions (`.github/workflows/ci.yaml`) builds the Docker images and runs the same checks, plus the Doctrine migrations and schema validation, on every push to `main` and on pull requests.
 
 ---
 

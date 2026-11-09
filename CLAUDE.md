@@ -19,6 +19,7 @@ Echora is the backend API for a self-hosted music streaming service: it stores t
 
 ## Gotchas
 
+- A PostToolUse hook (`.claude/hooks/php-cs-fixer.sh`) formats every PHP file you write or edit with PHP-CS-Fixer, when the stack is running. Expect files to change after an edit; re-read before editing the same region again.
 - A PostToolUse hook (`.claude/hooks/fix-permissions.sh`) runs `scripts/fix-permissions.sh` automatically after every Bash command containing `docker compose exec` or `docker compose run`, so don't run it by hand after those. Run it manually only if root-owned files appeared some other way.
 
 - `composer.json` declares `GPL-3.0-only`. Don't let a skeleton or recipe overwrite `LICENSE` with an MIT text: check `git diff LICENSE` after any scaffolding.
