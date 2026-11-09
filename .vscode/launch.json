@@ -1,0 +1,15 @@
+{
+  // Start the app with Xdebug enabled first: XDEBUG_MODE=develop,debug docker compose up --wait
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug PHP (Docker)",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "pathMappings": {
+        "/app": "${workspaceFolder}"
+      }
+    }
+  ]
+}

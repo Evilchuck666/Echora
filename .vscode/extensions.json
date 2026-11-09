@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "bmewburn.vscode-intelephense-client",
+    "symfony.language-tools",
     "xdebug.php-debug",
     "redhat.vscode-yaml",
     "editorconfig.editorconfig",

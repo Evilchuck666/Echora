@@ -7,6 +7,9 @@
     "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
   },
 
+  // Must match the PHP version of the Docker image (Dockerfile: dunglas/frankenphp:1-php8.5).
+  "intelephense.environment.phpVersion": "8.5.0",
+
   // Intelephense defaults plus Symfony's var/ (cache holds generated copies of classes and would duplicate symbols).
   "intelephense.files.exclude": [
     "**/.git/**",
@@ -29,5 +32,6 @@
   "search.exclude": {
     "**/var/**": true,
     "**/vendor/**": true
-  }
+  },
+  "python.terminal.useEnvFile": true
 }
