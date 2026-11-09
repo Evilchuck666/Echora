@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Echora is the backend API for a self-hosted music streaming service: it catalogs a folder of FLAC/MP3 files and serves them over HTTP for clients to download and play.
 
 - Stack: PHP 8.5, Symfony 8.1, API Platform 5, PostgreSQL 16 via Doctrine ORM, served by FrankenPHP. Docker setup based on the `dunglas/symfony-docker` template.
-- This repo is the API only. The web frontend (React + TypeScript) lives in a separate repo, and native apps for other platforms are planned.
+- This repo is the API only. The web client (React + TypeScript) lives in a separate repo at `../echora-web`, and native apps for other platforms are planned. When an API change affects clients (fields, endpoints, auth), say so: `../echora-web/CLAUDE.md` documents how the client uses the API.
 - The "ask before generating" questions in AGENTS.md are answered: Doctrine ORM, a JSON API built with API Platform (no Twig), and multi-user JWT authentication (LexikJWT + gesdinet refresh tokens).
 
 ## Architecture rules
