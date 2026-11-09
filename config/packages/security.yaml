@@ -39,13 +39,13 @@ security:
     # Note: Only the *first* matching rule is applied
     access_control:
         # API documentation (Swagger UI, OpenAPI, JSON-LD contexts): describes the API, holds no data.
-        - { path: ^/api$, roles: PUBLIC_ACCESS }
-        - { path: ^/api/(docs|contexts)(/|\.|$), roles: PUBLIC_ACCESS }
-        - { path: ^/api/(auth|token/refresh)$, roles: PUBLIC_ACCESS }
+        - { path: '^/api$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/(docs|contexts)(/|\.|$)', roles: PUBLIC_ACCESS }
+        - { path: '^/api/(auth|token/refresh)$', roles: PUBLIC_ACCESS }
         # Checked by LibraryFiles::denyUnlessAuthorized(): a JWT or a signed URL (players and <img> can't send headers).
-        - { path: ^/api/tracks/[^/]+/stream$, roles: PUBLIC_ACCESS }
-        - { path: ^/api/albums/[^/]+/cover$, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: ROLE_USER }
+        - { path: '^/api/tracks/[^/]+/stream$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/albums/[^/]+/cover$', roles: PUBLIC_ACCESS }
+        - { path: '^/api', roles: ROLE_USER }
 
 when@test:
     security:

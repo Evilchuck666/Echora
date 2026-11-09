@@ -45,4 +45,5 @@ Echora is the backend API for a self-hosted music streaming service: it catalogs
 - `composer.json` declares `GPL-3.0-only`. Don't let a skeleton or recipe overwrite `LICENSE` with an MIT text: check `git diff LICENSE` after any scaffolding.
 - Flex skips `contrib` recipes (`allow-contrib: false`): `dama/doctrine-test-bundle`, `gesdinet/jwt-refresh-token-bundle` and PHPStan had to be configured by hand.
 - Changes to `frankenphp/docker-entrypoint.sh` need `docker compose up --build --wait`: the script is copied into the image, not bind-mounted.
+- Quote regular expressions in YAML (`path: '^/api/tracks/[^/]+/stream$'`): inside `{ ... }` an unquoted `[` starts a list. Symfony's lenient parser accepts it, so `lint:yaml` and the tests pass, but strict parsers (the VS Code YAML extension) report the rest of the file as broken.
 - The database service publishes port 5432 on a random host port (`docker compose port database 5432`), because the host already runs its own PostgreSQL on 5432.
