@@ -1,0 +1,23 @@
+meta {
+  name: Artist cover with signed URL
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{artistCoverUrl}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns the thumbnail without an Authorization header, cacheable", function () {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/jpeg");
+    expect(res.headers["cache-control"]).to.contain("max-age=86400");
+  });
+}
+
+docs {
+  Calls the signed `coverUrl` of the artist found by **List artists**, without any authentication, the way an `<img>` would. It stays the same for a day, so browsers can cache it.
+}

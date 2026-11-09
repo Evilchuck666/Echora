@@ -18,7 +18,8 @@ use Symfony\Component\Finder\Finder;
  * New files are added, files whose size or modification time changed are read again,
  * missing files are removed, and albums and artists left without tracks are deleted.
  * Then the cover of every album is looked up again (see CoverFinder), so a cover added
- * or replaced without touching the audio files is picked up too.
+ * or replaced without touching the audio files is picked up too, and so is the image of
+ * every artist (see ArtistImages), downloaded from TheAudioDB when the artist folder has none.
  * The files themselves are never modified: the folder is mounted read-only.
  */
 final class LibraryScanner
@@ -38,6 +39,7 @@ final class LibraryScanner
         private readonly ArtistRepository $artists,
         private readonly TagReader $tagReader,
         private readonly CoverFinder $coverFinder,
+        private readonly ArtistImages $artistImages,
         #[Autowire('%env(resolve:MUSIC_LIBRARY_PATH)%')]
         private readonly string $musicLibraryPath,
     ) {
@@ -46,10 +48,11 @@ final class LibraryScanner
     /**
      * @param string|null $directory Folder to scan; defaults to MUSIC_LIBRARY_PATH
      * @param bool        $full      Read every file again, even unchanged ones (e.g. after an update that reads more tags)
+     * @param bool        $download  Look up the artists without an image on TheAudioDB
      *
      * @throws LibraryUnavailable
      */
-    public function scan(?string $directory = null, bool $full = false): ScanReport
+    public function scan(?string $directory = null, bool $full = false, bool $download = true): ScanReport
     {
         $root = $directory ?? $this->musicLibraryPath;
         $known = $this->tracks->findFileStates();
@@ -110,6 +113,7 @@ final class LibraryScanner
         $this->albums->deleteWithoutTracks();
         $this->artists->deleteWithoutAlbumsOrTracks();
         $report->coversUpdated = $this->updateCovers($root);
+        $this->artistImages->update($root, $download, $report);
 
         return $report;
     }

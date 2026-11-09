@@ -12,11 +12,15 @@ services:
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       JWT_PASSPHRASE: ${JWT_PASSPHRASE:?Set JWT_PASSPHRASE in prod.env (see prod.env.example)}
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:?Set CORS_ALLOW_ORIGIN in prod.env (see prod.env.example)}
+      THEAUDIODB_API_KEY: ${THEAUDIODB_API_KEY-123}
     volumes:
       # Music library, read-only. Set MUSIC_DIR in prod.env (see prod.env.example).
       - ${MUSIC_DIR:?Set MUSIC_DIR to the folder that holds your music (see prod.env.example)}:/music:ro
       # JWT signing keys, generated on the first start. Losing them signs everyone out.
       - jwt_keys:/app/config/jwt
+      # Artist images downloaded from TheAudioDB, and thumbnails. Losing it only means downloading them again.
+      - media:/app/var/media
 
 volumes:
   jwt_keys:
+  media:

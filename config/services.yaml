@@ -7,6 +7,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Files Echora makes: artist images downloaded from TheAudioDB and thumbnails. One folder per
+    # environment, so tests never touch them; in production it is the "media" volume (compose.prod.yaml).
+    app.media_dir: '%kernel.project_dir%/var/media/%kernel.environment%'
 
 services:
     # default configuration for services in *this* file

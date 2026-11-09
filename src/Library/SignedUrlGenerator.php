@@ -3,13 +3,14 @@
 namespace App\Library;
 
 use App\Entity\Album;
+use App\Entity\Artist;
 use App\Entity\Track;
 use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * Builds signed, expiring URLs of the files of the library: the audio of a track and
- * the cover of an album.
+ * Builds signed, expiring URLs of the files of the library: the audio of a track, the
+ * cover of an album and the image of an artist.
  *
  * Audio players and <img> elements fetch those files themselves and can't add an
  * Authorization header. The signature proves that the API handed out the URL; it is
@@ -44,6 +45,18 @@ final readonly class SignedUrlGenerator
         }
 
         return $this->sign('album_cover', $album->getId()->toRfc4122(), self::coverExpiration());
+    }
+
+    /**
+     * Expires like album covers, for the same reason.
+     */
+    public function artistCover(Artist $artist): ?string
+    {
+        if (!$artist->hasImage()) {
+            return null;
+        }
+
+        return $this->sign('artist_cover', $artist->getId()->toRfc4122(), self::coverExpiration());
     }
 
     public static function coverExpiration(): \DateTimeImmutable

@@ -13,7 +13,7 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireDecorated;
 
 /**
  * Documents the endpoints that serve library files (plain Symfony controllers:
- * TrackStreamController, AlbumCoverController) in the OpenAPI specification, so
+ * TrackStreamController, AlbumCoverController, ArtistCoverController) in the OpenAPI specification, so
  * generated clients know about them.
  */
 #[AsDecorator(decorates: 'api_platform.openapi.factory')]
@@ -63,6 +63,21 @@ final readonly class LibraryFilesOpenApiFactory implements OpenApiFactoryInterfa
             description: 'Returns the cover found in the album folder (folder, cover, front or album, in JPEG, PNG or WebP). '
                 .'Authenticate with a JWT, or call the coverUrl of the album as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.',
             parameters: [$this->id('Album identifier'), ...$this->signature('coverUrl')],
+            security: [['JWT' => []], []],
+        )));
+
+        $paths->addPath('/api/artists/{id}/cover', new PathItem(get: new Operation(
+            operationId: 'get_artist_cover',
+            tags: ['Artist'],
+            responses: [
+                '200' => new Response('A thumbnail of the artist (JPEG, square, at most 300 pixels a side)', $this->binary('image/jpeg')),
+                '401' => new Response('Neither a valid JWT nor a valid, unexpired signature'),
+                '404' => new Response('The artist does not exist or has no image, or its image is missing or unreadable'),
+            ],
+            summary: 'Returns a thumbnail of an artist',
+            description: 'Returns a small square JPEG made from the image in the artist folder (artist or folder, in JPEG, PNG or WebP), or else from TheAudioDB (theaudiodb.com). '
+                .'Authenticate with a JWT, or call the coverUrl of the artist as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.',
+            parameters: [$this->id('Artist identifier'), ...$this->signature('coverUrl')],
             security: [['JWT' => []], []],
         )));
 

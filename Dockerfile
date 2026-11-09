@@ -25,6 +25,7 @@ RUN <<-EOF
 	install-php-extensions \
 		@composer \
 		apcu \
+		gd \
 		intl \
 		opcache \
 		zip

@@ -26,9 +26,11 @@ final readonly class LibraryScanCommand
         ?string $directory = null,
         #[Option('Read every file again, even unchanged ones (e.g. after an update of Echora that reads more tags)')]
         bool $full = false,
+        #[Option('Don\'t look up artist images on TheAudioDB (the artist folders are still searched)')]
+        bool $offline = false,
     ): int {
         try {
-            $report = $this->scanner->scan($directory, $full);
+            $report = $this->scanner->scan($directory, $full, !$offline);
         } catch (LibraryUnavailable $e) {
             $io->error($e->getMessage());
 
@@ -41,6 +43,8 @@ final readonly class LibraryScanCommand
             ['Unchanged' => $report->unchanged],
             ['Removed' => $report->removed],
             ['Covers updated' => $report->coversUpdated],
+            ['Artist images updated' => $report->artistImagesUpdated],
+            ['Artist images downloaded' => $report->artistImagesDownloaded],
             ['Failed' => \count($report->failed)],
         );
 
@@ -51,6 +55,10 @@ final readonly class LibraryScanCommand
                 array_keys($report->failed),
                 $report->failed,
             ));
+        }
+
+        if (null !== $report->artistImageLookupFailure) {
+            $io->warning(\sprintf('%s The remaining artist images will be looked up on the next scan.', $report->artistImageLookupFailure));
         }
 
         $io->success('The library is up to date.');

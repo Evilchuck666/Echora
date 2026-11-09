@@ -18,6 +18,11 @@ params:query {
 script:post-response {
   if (res.status === 200 && res.body.member.length > 0) {
     bru.setVar("artistIri", res.body.member[0]["@id"]);
+    const withCover = res.body.member.find((artist) => artist.coverUrl);
+    if (withCover) {
+      bru.setVar("coverArtistIri", withCover["@id"]);
+      bru.setVar("artistCoverUrl", withCover.coverUrl);
+    }
   }
 }
 
@@ -29,5 +34,5 @@ tests {
 }
 
 docs {
-  Artists sorted by name. Enable `name` to search (case-insensitive, partial match). Remembers the first artist as `artistIri`.
+  Artists sorted by name. Enable `name` to search (case-insensitive, partial match). Remembers the first artist as `artistIri`, and the first one with an image for **4 Media** (`coverArtistIri`, `artistCoverUrl`).
 }

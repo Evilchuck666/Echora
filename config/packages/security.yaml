@@ -50,7 +50,7 @@ security:
         - { path: '^/api/(auth|token/refresh|logout)$', roles: PUBLIC_ACCESS }
         # Checked by LibraryFiles::denyUnlessAuthorized(): a JWT or a signed URL (players and <img> can't send headers).
         - { path: '^/api/tracks/[^/]+/stream$', roles: PUBLIC_ACCESS }
-        - { path: '^/api/albums/[^/]+/cover$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/(albums|artists)/[^/]+/cover$', roles: PUBLIC_ACCESS }
         - { path: '^/api', roles: ROLE_USER }
 
 when@test:

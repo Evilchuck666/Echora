@@ -13,7 +13,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * Serves files of the music library (audio, covers) to authorized requests.
+ * Serves files of the music library (audio, covers), and images made from them, to authorized requests.
  */
 final readonly class LibraryFiles
 {
@@ -44,14 +44,32 @@ final readonly class LibraryFiles
      */
     public function response(string $path, string $mimeType, string $missingMessage): BinaryFileResponse
     {
+        return $this->fileResponse($this->path($path) ?? throw new NotFoundHttpException($missingMessage), $mimeType);
+    }
+
+    /**
+     * Absolute path of a file of the library, or null when it is missing.
+     *
+     * @param string $path Relative to the music library folder
+     */
+    public function path(string $path): ?string
+    {
         $root = realpath($this->musicLibraryPath);
         $file = realpath($this->musicLibraryPath.'/'.$path);
 
         // Paths come from the scanner, but never serve anything outside the library.
         if (false === $root || false === $file || !str_starts_with($file, $root.'/') || !is_file($file)) {
-            throw new NotFoundHttpException($missingMessage);
+            return null;
         }
 
+        return $file;
+    }
+
+    /**
+     * @param string $file Absolute path, already checked by the caller
+     */
+    public function fileResponse(string $file, string $mimeType): BinaryFileResponse
+    {
         // private: shared caches must not keep files that require authentication.
         $response = new BinaryFileResponse($file, headers: ['Content-Type' => $mimeType], public: false, autoEtag: true, autoLastModified: true);
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, basename($file));

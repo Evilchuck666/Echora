@@ -1,0 +1,26 @@
+meta {
+  name: Artist cover with JWT
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}{{coverArtistIri}}/cover
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  coverArtistIri: Accept
+}
+
+tests {
+  test("returns a JPEG thumbnail of the artist", function () {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/jpeg");
+  });
+}
+
+docs {
+  A thumbnail of the first artist with an image found by **List artists**: a square JPEG of at most 300 pixels a side, made from the image in the artist folder or downloaded from TheAudioDB.
+}

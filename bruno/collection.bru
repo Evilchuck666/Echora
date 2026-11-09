@@ -11,12 +11,12 @@ script:pre-request {
   // each request tab keeps its own variables there, so the token stored by "Sign in"
   // in one tab is not visible from the others. Elsewhere it simply renews an expired token.
   //
-  // Sign in, Refresh, Sign out and the signed URLs (streamUrl, coverUrl) don't send the JWT. They are told apart by
+  // Sign in, Refresh, Sign out and the signed URLs (streamUrl, coverUrl, artistCoverUrl) don't send the JWT. They are told apart by
   // URL, not with req.getAuthMode(): the VS Code extension adds the Authorization header
   // after this script runs, so getAuthMode() always answers "none" there. The URL can
   // still hold unresolved variables at this point ("{{baseUrl}}/api/auth", "{{coverUrl}}").
   const url = req.getUrl();
-  const sendsToken = !/\/api\/(auth|token\/refresh|logout)\b/.test(url) && !/\{\{(streamUrl|coverUrl)\}\}/.test(url) && !url.includes("_hash=");
+  const sendsToken = !/\/api\/(auth|token\/refresh|logout)\b/.test(url) && !/\{\{(streamUrl|coverUrl|artistCoverUrl)\}\}/.test(url) && !url.includes("_hash=");
   const expiresAt = Number(bru.getVar("tokenExpiresAt") || 0);
 
   if (sendsToken && (!bru.getVar("token") || Date.now() >= expiresAt)) {
