@@ -70,6 +70,11 @@ final readonly class LibraryFiles
      */
     public function fileResponse(string $file, string $mimeType): BinaryFileResponse
     {
+        // Behind Caddy (frankenphp/Caddyfile), which sets the X-Sendfile-Type and X-Accel-Mapping request headers
+        // itself, the response carries an X-Accel-Redirect header instead of the file, and Caddy sends the file.
+        // Without those headers (tests, bin/console server:dump...), PHP streams it as before.
+        BinaryFileResponse::trustXSendfileTypeHeader();
+
         // private: shared caches must not keep files that require authentication.
         $response = new BinaryFileResponse($file, headers: ['Content-Type' => $mimeType], public: false, autoEtag: true, autoLastModified: true);
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, basename($file));

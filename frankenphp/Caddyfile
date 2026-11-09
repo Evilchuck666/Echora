@@ -52,6 +52,27 @@
 
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
+	# Library files (audio, covers) and images in var/media are sent by Caddy, not by PHP: PHP checks the access
+	# and answers with an X-Accel-Redirect header (LibraryFiles, Symfony's BinaryFileResponse), then Caddy serves
+	# the file, with byte ranges and no time limit. Streamed by PHP, a track read slowly by a player hit
+	# max_execution_time after 30 seconds, and held a PHP worker for minutes.
+	# Both request headers are always overwritten here: a client must never choose where a path is mapped.
+	request_header X-Sendfile-Type x-accel-redirect
+	request_header X-Accel-Mapping "/music/=/music/,/app/var/media/=/app/var/media/"
+
+	intercept {
+		@sendfile header X-Accel-Redirect *
+		handle_response @sendfile {
+			root * /
+			rewrite * {resp.header.X-Accel-Redirect}
+			header -X-Accel-Redirect
+			# Defense in depth: only the music library and the media folder, whatever the header says.
+			@outside not path /music/* /app/var/media/*
+			respond @outside 404
+			file_server
+		}
+	}
+
 	@phpRoute {
 		not path /.well-known/mercure*
 		not file {path}

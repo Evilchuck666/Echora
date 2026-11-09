@@ -39,6 +39,34 @@ final class TrackStreamTest extends ApiTestCase
         self::assertSame(file_get_contents(self::FILE), $this->body());
     }
 
+    public function testBehindCaddyTheFileIsHandedOverWithXAccelRedirect(): void
+    {
+        // frankenphp/Caddyfile sets both request headers, then serves the file named in X-Accel-Redirect itself.
+        $file = (string) realpath(self::FILE);
+        $folder = \dirname($file, 3).'/';
+        $this->client->request('GET', $this->streamUrl('Opening'), ['headers' => [
+            'X-Sendfile-Type' => 'x-accel-redirect',
+            'X-Accel-Mapping' => $folder.'='.$folder,
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('x-accel-redirect', rawurlencode($file));
+        self::assertResponseHeaderSame('content-type', 'audio/flac');
+        self::assertSame('', $this->body(), 'Caddy sends the file, PHP sends nothing.');
+    }
+
+    public function testFilesOutsideTheMappedFoldersAreStreamedByPhp(): void
+    {
+        $this->client->request('GET', $this->streamUrl('Opening'), ['headers' => [
+            'X-Sendfile-Type' => 'x-accel-redirect',
+            'X-Accel-Mapping' => '/somewhere/else/=/somewhere/else/',
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseNotHasHeader('x-accel-redirect');
+        self::assertSame(file_get_contents(self::FILE), $this->body());
+    }
+
     public function testARangeRequestReturnsOnlyThoseBytes(): void
     {
         $this->client->request('GET', $this->streamUrl('Opening'), ['headers' => ['Range' => 'bytes=100-199']]);
