@@ -1,0 +1,33 @@
+{
+  // PHP runs inside Docker, not on the host: disable the built-in features that need a local php binary.
+  "php.validate.enable": false,
+  "php.suggest.basic": false,
+
+  "[php]": {
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+  },
+
+  // Intelephense defaults plus Symfony's var/ (cache holds generated copies of classes and would duplicate symbols).
+  "intelephense.files.exclude": [
+    "**/.git/**",
+    "**/.svn/**",
+    "**/.hg/**",
+    "**/CVS/**",
+    "**/.DS_Store/**",
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**/{Tests,tests}/**",
+    "**/.history/**",
+    "**/vendor/**/vendor/**",
+    "**/var/**"
+  ],
+
+  "files.watcherExclude": {
+    "**/var/**": true,
+    "**/vendor/**": true
+  },
+  "search.exclude": {
+    "**/var/**": true,
+    "**/vendor/**": true
+  }
+}

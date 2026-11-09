@@ -1,0 +1,10 @@
+{
+  // Project settings and recommended extensions live in .vscode/, so they also apply when opening the folder directly.
+  "folders": [
+    {
+      "name": "Echora API",
+      "path": "."
+    }
+  ],
+  "settings": {}
+}
