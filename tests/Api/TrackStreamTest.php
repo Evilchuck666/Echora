@@ -96,7 +96,7 @@ final class TrackStreamTest extends ApiTestCase
         $album = new Album($artist, 'Gone Album');
         $track = new Track('Gone Artist/Gone Album/01 - Gone.flac', $album, $artist, new AudioMetadata(
             title: 'Gone', artist: 'Gone Artist', albumArtist: 'Gone Artist', album: 'Gone Album', year: null,
-            trackNumber: 1, discNumber: null, genre: null, durationMs: 1000,
+            trackNumber: 1, discNumber: null, genre: null, lyrics: null, durationMs: 1000,
             format: 'flac', mimeType: 'audio/flac', fileSize: 1, fileModifiedAt: 0,
         ));
         array_map($entityManager->persist(...), [$artist, $album, $track]);

@@ -1,0 +1,23 @@
+meta {
+  name: Album cover with signed URL
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{coverUrl}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns the cover without an Authorization header, cacheable", function () {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.match(/^image\//);
+    expect(res.headers["cache-control"]).to.contain("max-age=86400");
+  });
+}
+
+docs {
+  Calls the signed `coverUrl` found by **List albums**, without any authentication, the way an `<img>` would. It stays the same for a day, so browsers can cache it.
+}

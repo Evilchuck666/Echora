@@ -27,6 +27,7 @@ The backend and the clients are separate projects that talk only through the API
 
 - **Your music folder is the library**: Echora reads the tags of your FLAC and MP3 files and builds a catalog of artists, albums and tracks. The folder is mounted read-only, so your files are never modified.
 - **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
+- **Covers and lyrics**: album covers come from the album folder, lyrics from the tags.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
 - **Browsable API**: artists, albums and tracks with pagination and filters, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
 - **User accounts**: sign in with a username and password, get a JWT and a refresh token that keeps apps signed in. Audio players get signed, expiring URLs, so an `<audio>` element can play tracks without sending any header.
@@ -92,8 +93,13 @@ Echora reads FLAC and MP3 files in any folder layout, and uses these tags:
 | Year | `DATE` | `TYER` / `TDRC` | Empty |
 | Track and disc number | `TRACKNUMBER`, `DISCNUMBER` | `TRCK`, `TPOS` | Empty |
 | Genre | `GENRE` | `TCON` | Empty |
+| Lyrics | `LYRICS` / `UNSYNCEDLYRICS` | `USLT` | Empty |
 
 Albums are grouped by album artist and title, so a compilation tagged with `ALBUMARTIST=Various Artists` stays one album while each track keeps its own artist.
+
+The cover of an album is the first image of its folder named `folder`, `cover`, `front` or `album` (in that order, any case), in JPEG, PNG or WebP. Covers are looked up again on every scan, so adding or replacing one only takes a scan.
+
+A scan skips the files that didn't change. After updating Echora to a version that reads more tags, read every file again with `app:library:scan --full`.
 
 ---
 
@@ -124,6 +130,8 @@ Open **https://localhost/api** in a browser to explore every endpoint. The OpenA
 
 Every track includes a `streamUrl`: a signed link to its audio, valid for six hours, that works without the `Authorization` header. Use it as the `src` of an `<audio>` element or hand it to a native media player. When it expires, fetch the track again for a new one.
 
+Likewise, every album (also when embedded in a track) includes a `coverUrl`, or `null` when its folder has no cover. Use it as the `src` of an `<img>`: it stays the same for a day, so browsers cache the image.
+
 ### Endpoints
 
 | Endpoint | What it returns |
@@ -134,10 +142,13 @@ Every track includes a `streamUrl`: a signed link to its audio, valid for six ho
 | `GET /api/artists` | Artists, by name. Filter: `name` |
 | `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |
 | `GET /api/tracks` | Tracks, by disc and track number. Filters: `album` (IRI), `artist` (IRI), `title`, `genre` |
-| `GET /api/{artists,albums,tracks}/{id}` | One item |
+| `GET /api/{artists,albums,tracks}/{id}` | One item. A single track also includes its `lyrics`; lists only say `hasLyrics` |
 | `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support. Use the track's `streamUrl` |
+| `GET /api/albums/{id}/cover` | The cover image. Use the album's `coverUrl` |
 
 Responses are JSON-LD by default; send `Accept: application/json` for plain JSON.
+
+Browsers only let web clients on other origins call the API when `CORS_ALLOW_ORIGIN` allows them. In development it allows `localhost` on any port; in production, set it in `prod.env` to the address of your web client.
 
 ---
 

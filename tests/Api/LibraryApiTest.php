@@ -6,6 +6,7 @@ use ApiPlatform\Test\ApiTestCase;
 use ApiPlatform\Test\Client;
 use App\Entity\Album;
 use App\Entity\Artist;
+use App\Entity\Track;
 use App\Library\LibraryScanner;
 
 final class LibraryApiTest extends ApiTestCase
@@ -87,6 +88,50 @@ final class LibraryApiTest extends ApiTestCase
                 ['title' => 'Second Song', 'trackNumber' => 2],
             ],
         ]);
+    }
+
+    public function testAlbumsComeWithASignedCoverUrlWhenTheyHaveACover(): void
+    {
+        $albums = $this->client->request('GET', '/api/albums?title=album')->toArray()['member'];
+        self::assertIsArray($albums);
+        $covers = array_column($albums, 'coverUrl', 'title');
+
+        self::assertIsString($covers['First Album']);
+        self::assertMatchesRegularExpression('#/api/albums/[0-9a-f-]+/cover\?.*_hash=#', $covers['First Album']);
+        self::assertNull($covers['Unknown Album']);
+    }
+
+    public function testListsSayWhetherATrackHasLyricsWithoutIncludingThem(): void
+    {
+        $tracks = $this->client->request('GET', '/api/tracks?title=o')->toArray()['member'];
+        self::assertIsArray($tracks);
+
+        foreach ($tracks as $track) {
+            self::assertIsArray($track);
+            self::assertArrayNotHasKey('lyrics', $track);
+        }
+        $hasLyrics = array_column($tracks, 'hasLyrics', 'title');
+        self::assertTrue($hasLyrics['Opening']);
+        self::assertFalse($hasLyrics['Second Song']);
+    }
+
+    public function testASingleTrackIncludesItsLyricsAndTheCoverOfItsAlbum(): void
+    {
+        $iri = $this->findIriBy(Track::class, ['title' => 'Opening']);
+        self::assertNotNull($iri);
+
+        $this->client->request('GET', $iri);
+
+        self::assertJsonContains([
+            'hasLyrics' => true,
+            'lyrics' => "First line of the opening\nSecond line of the opening",
+            'album' => ['title' => 'First Album'],
+        ]);
+        $track = $this->client->getResponse()?->toArray();
+        self::assertIsArray($track);
+        $album = $track['album'] ?? null;
+        self::assertIsArray($album);
+        self::assertIsString($album['coverUrl']);
     }
 
     public function testTracksNeverExposeWhereTheFileLivesOnTheServer(): void

@@ -6,6 +6,7 @@ use App\Library\LibraryScanner;
 use App\Library\LibraryUnavailable;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -23,9 +24,11 @@ final readonly class LibraryScanCommand
         SymfonyStyle $io,
         #[Argument('Folder to scan instead of MUSIC_LIBRARY_PATH')]
         ?string $directory = null,
+        #[Option('Read every file again, even unchanged ones (e.g. after an update of Echora that reads more tags)')]
+        bool $full = false,
     ): int {
         try {
-            $report = $this->scanner->scan($directory);
+            $report = $this->scanner->scan($directory, $full);
         } catch (LibraryUnavailable $e) {
             $io->error($e->getMessage());
 
@@ -37,6 +40,7 @@ final readonly class LibraryScanCommand
             ['Updated' => $report->updated],
             ['Unchanged' => $report->unchanged],
             ['Removed' => $report->removed],
+            ['Covers updated' => $report->coversUpdated],
             ['Failed' => \count($report->failed)],
         );
 

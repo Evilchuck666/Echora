@@ -17,6 +17,8 @@ use Symfony\Component\Finder\Finder;
  *
  * New files are added, files whose size or modification time changed are read again,
  * missing files are removed, and albums and artists left without tracks are deleted.
+ * Then the cover of every album is looked up again (see CoverFinder), so a cover added
+ * or replaced without touching the audio files is picked up too.
  * The files themselves are never modified: the folder is mounted read-only.
  */
 final class LibraryScanner
@@ -35,6 +37,7 @@ final class LibraryScanner
         private readonly AlbumRepository $albums,
         private readonly ArtistRepository $artists,
         private readonly TagReader $tagReader,
+        private readonly CoverFinder $coverFinder,
         #[Autowire('%env(resolve:MUSIC_LIBRARY_PATH)%')]
         private readonly string $musicLibraryPath,
     ) {
@@ -42,10 +45,11 @@ final class LibraryScanner
 
     /**
      * @param string|null $directory Folder to scan; defaults to MUSIC_LIBRARY_PATH
+     * @param bool        $full      Read every file again, even unchanged ones (e.g. after an update that reads more tags)
      *
      * @throws LibraryUnavailable
      */
-    public function scan(?string $directory = null): ScanReport
+    public function scan(?string $directory = null, bool $full = false): ScanReport
     {
         $root = $directory ?? $this->musicLibraryPath;
         $known = $this->tracks->findFileStates();
@@ -70,7 +74,7 @@ final class LibraryScanner
             $seen[$path] = true;
             $state = $known[$path] ?? null;
 
-            if (null !== $state && $state['size'] === (int) $file->getSize() && $state['modifiedAt'] === (int) $file->getMTime()) {
+            if (!$full && null !== $state && $state['size'] === (int) $file->getSize() && $state['modifiedAt'] === (int) $file->getMTime()) {
                 ++$report->unchanged;
                 continue;
             }
@@ -105,8 +109,36 @@ final class LibraryScanner
         $report->removed = $this->tracks->deleteByPaths(array_keys(array_diff_key($known, $seen)));
         $this->albums->deleteWithoutTracks();
         $this->artists->deleteWithoutAlbumsOrTracks();
+        $report->coversUpdated = $this->updateCovers($root);
 
         return $report;
+    }
+
+    /**
+     * @return int Number of albums whose cover was found, changed or removed
+     */
+    private function updateCovers(string $root): int
+    {
+        $updated = 0;
+
+        foreach ($this->albums->findCoverStates() as $state) {
+            $folder = \dirname($state['trackPath']);
+            $cover = $this->coverFinder->find($root.'/'.$folder);
+            $coverPath = match (true) {
+                null === $cover => null,
+                '.' === $folder => $cover,
+                default => $folder.'/'.$cover,
+            };
+
+            if ($coverPath !== $state['coverPath']) {
+                $this->albums->find($state['id'])?->setCoverPath($coverPath);
+                ++$updated;
+            }
+        }
+
+        $this->flush();
+
+        return $updated;
     }
 
     private function add(string $path, AudioMetadata $metadata): void

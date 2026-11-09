@@ -56,6 +56,7 @@ final class TagReader
             trackNumber: $this->number($this->first($comments, 'track_number', 'tracknumber')),
             discNumber: $this->number($this->first($comments, 'discnumber', 'part_of_a_set')),
             genre: $this->first($comments, 'genre'),
+            lyrics: $this->lyrics($this->first($comments, 'lyrics', 'unsyncedlyrics', 'unsynchronised_lyric')),
             durationMs: is_numeric($playtime) ? (int) round((float) $playtime * 1000) : null,
             format: $format,
             mimeType: \is_string($mimeType) ? $mimeType : ('flac' === $format ? 'audio/flac' : 'audio/mpeg'),
@@ -101,6 +102,14 @@ final class TagReader
     private function year(?string $date): ?int
     {
         return null !== $date && 1 === preg_match('/^(\d{4})/', $date, $matches) ? (int) $matches[1] : null;
+    }
+
+    /**
+     * Unsynchronised lyrics: FLAC "LYRICS" / "UNSYNCEDLYRICS", MP3 "USLT". Line breaks normalised to \n.
+     */
+    private function lyrics(?string $lyrics): ?string
+    {
+        return null === $lyrics ? null : str_replace(["\r\n", "\r"], "\n", $lyrics);
     }
 
     /**

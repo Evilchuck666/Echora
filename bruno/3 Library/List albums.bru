@@ -20,6 +20,11 @@ params:query {
 script:post-response {
   if (res.status === 200 && res.body.member.length > 0) {
     bru.setVar("albumIri", res.body.member[0]["@id"]);
+    const withCover = res.body.member.find((album) => album.coverUrl);
+    if (withCover) {
+      bru.setVar("coverUrl", withCover.coverUrl);
+      bru.setVar("coverAlbumIri", withCover["@id"]);
+    }
   }
 }
 
@@ -31,5 +36,5 @@ tests {
 }
 
 docs {
-  Albums sorted by year. Enable `artist` to list the albums of the artist found by **List artists**. Remembers the first album as `albumIri`.
+  Albums sorted by year. Enable `artist` to list the albums of the artist found by **List artists**. Remembers the first album as `albumIri`, and the first one with a cover for **4 Media** (`coverAlbumIri`, `coverUrl`).
 }

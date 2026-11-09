@@ -16,6 +16,7 @@ final readonly class AudioMetadata
         public ?int $trackNumber,
         public ?int $discNumber,
         public ?string $genre,
+        public ?string $lyrics,
         public ?int $durationMs,
         public string $format,
         public string $mimeType,

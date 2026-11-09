@@ -22,6 +22,7 @@ final class TagReaderTest extends TestCase
         self::assertSame(1, $metadata->trackNumber);
         self::assertSame(1, $metadata->discNumber);
         self::assertSame('Heavy Metal', $metadata->genre);
+        self::assertSame("First line of the opening\nSecond line of the opening", $metadata->lyrics);
         self::assertSame(1000, $metadata->durationMs);
         self::assertSame('flac', $metadata->format);
         self::assertSame('audio/flac', $metadata->mimeType);
@@ -37,6 +38,7 @@ final class TagReaderTest extends TestCase
         self::assertSame(2022, $metadata->year);
         self::assertSame(1, $metadata->trackNumber, '"1/1" is track 1.');
         self::assertSame(1, $metadata->discNumber, '"1/1" is disc 1.');
+        self::assertSame("First line of the MP3 song\nSecond line of the MP3 song", $metadata->lyrics, 'MP3 lyrics are the USLT frame.');
         self::assertSame('mp3', $metadata->format);
         self::assertSame('audio/mpeg', $metadata->mimeType);
     }
@@ -60,6 +62,7 @@ final class TagReaderTest extends TestCase
         self::assertSame(TagReader::UNKNOWN_ALBUM, $metadata->album);
         self::assertNull($metadata->year);
         self::assertNull($metadata->trackNumber);
+        self::assertNull($metadata->lyrics);
     }
 
     public function testItRejectsFilesThatAreNotAudio(): void

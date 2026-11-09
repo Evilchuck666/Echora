@@ -6,7 +6,7 @@ use ApiPlatform\Test\ApiTestCase;
 use ApiPlatform\Test\Client;
 use App\Entity\Track;
 use App\Library\LibraryScanner;
-use App\Library\StreamUrlGenerator;
+use App\Library\SignedUrlGenerator;
 use Symfony\Component\HttpFoundation\UriSigner;
 
 /**
@@ -39,7 +39,7 @@ final class SignedStreamUrlTest extends ApiTestCase
 
         parse_str((string) parse_url($track['streamUrl'], \PHP_URL_QUERY), $query);
         self::assertIsNumeric($query['_expiration'] ?? null);
-        self::assertEqualsWithDelta(time() + StreamUrlGenerator::LIFETIME_SECONDS, (int) $query['_expiration'], 60, 'Valid for a few hours from now.');
+        self::assertEqualsWithDelta(time() + SignedUrlGenerator::STREAM_LIFETIME_SECONDS, (int) $query['_expiration'], 60, 'Valid for a few hours from now.');
     }
 
     public function testTheSignedUrlWorksWithoutAuthorizationHeader(): void

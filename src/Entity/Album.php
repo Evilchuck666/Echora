@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Doctrine\Orm\Filter\ExactFilter;
 use ApiPlatform\Doctrine\Orm\Filter\IriFilter;
 use ApiPlatform\Doctrine\Orm\Filter\PartialSearchFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -38,6 +39,18 @@ class Album
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[Groups(['album:read', 'track:read'])]
     private Uuid $id;
+
+    /** Path of the cover image, relative to the music library folder. Never exposed. */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $coverPath = null;
+
+    /**
+     * Signed URL of the cover image, usable without an Authorization header
+     * (e.g. as the src of an <img>). Not stored: filled when the album is serialized.
+     */
+    #[ApiProperty(description: 'Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img>')]
+    #[Groups(['album:read', 'track:read'])]
+    private ?string $coverUrl = null;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -77,5 +90,25 @@ class Album
     public function setYear(?int $year): void
     {
         $this->year = $year;
+    }
+
+    public function getCoverPath(): ?string
+    {
+        return $this->coverPath;
+    }
+
+    public function setCoverPath(?string $coverPath): void
+    {
+        $this->coverPath = $coverPath;
+    }
+
+    public function getCoverUrl(): ?string
+    {
+        return $this->coverUrl;
+    }
+
+    public function setCoverUrl(?string $coverUrl): void
+    {
+        $this->coverUrl = $coverUrl;
     }
 }

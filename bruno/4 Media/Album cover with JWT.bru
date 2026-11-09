@@ -1,0 +1,22 @@
+meta {
+  name: Album cover with JWT
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}{{coverAlbumIri}}/cover
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("returns the cover image", function () {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.match(/^image\//);
+  });
+}
+
+docs {
+  The cover of the first album with a cover found by **List albums**.
+}

@@ -88,6 +88,41 @@ final class LibraryScannerTest extends KernelTestCase
         self::assertNotNull($this->entityManager()->getRepository(Artist::class)->findOneBy(['name' => 'Test Artist']));
     }
 
+    public function testCoversAreFoundInTheAlbumFolders(): void
+    {
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame(2, $report->coversUpdated);
+        self::assertSame([
+            'Compilation' => null,
+            'First Album' => 'Test Artist/2020 - First Album/folder.jpg',
+            'Second Album' => 'Test Artist/2022 - Second Album/Cover.PNG',
+            'Unknown Album' => null,
+        ], $this->coverPaths());
+    }
+
+    public function testCoversAddedOrRemovedLaterArePickedUpWithoutTouchingTheAudio(): void
+    {
+        $this->scanner()->scan($this->library);
+        copy(self::FIXTURES.'/Test Artist/2020 - First Album/folder.jpg', $this->library.'/Various Artists/2021 - Compilation/cover.jpg');
+        unlink($this->library.'/Test Artist/2022 - Second Album/Cover.PNG');
+
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame([0, 5, 2], [$report->updated, $report->unchanged, $report->coversUpdated]);
+        self::assertSame('Various Artists/2021 - Compilation/cover.jpg', $this->coverPaths()['Compilation']);
+        self::assertNull($this->coverPaths()['Second Album']);
+    }
+
+    public function testAFullScanReadsEveryFileAgain(): void
+    {
+        $this->scanner()->scan($this->library);
+
+        $report = $this->scanner()->scan($this->library, full: true);
+
+        self::assertSame([0, 5, 0], [$report->added, $report->updated, $report->unchanged]);
+    }
+
     public function testUnreadableFilesAreReportedAndSkipped(): void
     {
         file_put_contents($this->library.'/Test Artist/broken.flac', 'this is not audio');
@@ -118,6 +153,20 @@ final class LibraryScannerTest extends KernelTestCase
         $this->expectException(LibraryUnavailable::class);
 
         $this->scanner()->scan($this->library.'/does-not-exist');
+    }
+
+    /**
+     * @return array<string, string|null> Cover path by album title
+     */
+    private function coverPaths(): array
+    {
+        $this->entityManager()->clear();
+        $paths = [];
+        foreach ($this->entityManager()->getRepository(Album::class)->findBy([], ['title' => 'ASC']) as $album) {
+            $paths[$album->getTitle()] = $album->getCoverPath();
+        }
+
+        return $paths;
     }
 
     private function scanner(): LibraryScanner

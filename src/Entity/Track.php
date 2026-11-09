@@ -29,7 +29,8 @@ use Symfony\Component\Uid\Uuid;
             'title' => new QueryParameter(filter: new PartialSearchFilter(), property: 'title', description: 'Part of the track title, case-insensitive'),
             'genre' => new QueryParameter(filter: new ExactFilter(), property: 'genre', description: 'Genre'),
         ]),
-        new Get(),
+        // Lyrics only come with a single track, to keep lists light.
+        new Get(normalizationContext: ['groups' => ['track:read', 'track:item']]),
     ],
     normalizationContext: ['groups' => ['track:read']],
     order: ['discNumber' => 'ASC', 'trackNumber' => 'ASC', 'title' => 'ASC'],
@@ -71,6 +72,11 @@ class Track
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups(['track:read'])]
     private ?string $genre;
+
+    /** Unsynchronised lyrics from the tags, lines separated by \n. */
+    #[ORM\Column(type: 'text', nullable: true)]
+    #[Groups(['track:item'])]
+    private ?string $lyrics;
 
     /** Container format: "flac" or "mp3". */
     #[ORM\Column(length: 16)]
@@ -124,6 +130,7 @@ class Track
         $this->discNumber = $metadata->discNumber;
         $this->durationMs = $metadata->durationMs;
         $this->genre = $metadata->genre;
+        $this->lyrics = $metadata->lyrics;
         $this->format = $metadata->format;
         $this->mimeType = $metadata->mimeType;
         $this->fileSize = $metadata->fileSize;
@@ -173,6 +180,21 @@ class Track
     public function getGenre(): ?string
     {
         return $this->genre;
+    }
+
+    public function getLyrics(): ?string
+    {
+        return $this->lyrics;
+    }
+
+    /**
+     * Serialized as "hasLyrics" in lists, where the lyrics themselves are left out.
+     */
+    #[ApiProperty(description: 'Whether GET /api/tracks/{id} returns lyrics for this track')]
+    #[Groups(['track:read'])]
+    public function getHasLyrics(): bool
+    {
+        return null !== $this->lyrics;
     }
 
     public function getFormat(): string
