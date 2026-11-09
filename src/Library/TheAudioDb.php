@@ -10,15 +10,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Finds a photo of an artist on TheAudioDB (https://www.theaudiodb.com), for artists whose folder has none.
+ * Finds a photo of an artist or the cover of an album on TheAudioDB (https://www.theaudiodb.com),
+ * for artists and albums whose folder has none.
  *
  * The free API key ("123") allows 30 requests a minute, so searches are spaced out. An empty
- * THEAUDIODB_API_KEY turns the lookups off. Only an artist whose name is the same, ignoring
- * case and accents, is taken: a search returns the closest name, which may be someone else.
+ * THEAUDIODB_API_KEY turns the lookups off. Only an artist (and album) whose name is the same,
+ * ignoring case and accents, is taken: a search returns the closest name, which may be someone else.
  */
 final class TheAudioDb
 {
-    private const string SEARCH_URL = 'https://www.theaudiodb.com/api/v1/json/%s/search.php';
+    private const string API_URL = 'https://www.theaudiodb.com/api/v1/json/%s/%s';
 
     /** 30 requests a minute on the free key: a little slower, to stay clear of the limit. */
     private const float SECONDS_BETWEEN_SEARCHES = 2.1;
@@ -49,11 +50,50 @@ final class TheAudioDb
      */
     public function findArtistImage(string $artistName): ?DownloadedImage
     {
+        // {"artists": [...]} or {"artists": null} when nothing matches.
+        foreach ($this->search('search.php', ['s' => $artistName], 'artists') as $artist) {
+            if (\is_string($artist['strArtist'] ?? null) && self::isSameName($artist['strArtist'], $artistName)) {
+                return $this->downloadField($artist, 'strArtistThumb');
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param string $artistName The album artist
+     *
+     * @return DownloadedImage|null The front cover (strAlbumThumb), or null when TheAudioDB has none
+     *
+     * @throws TheAudioDbUnavailable
+     */
+    public function findAlbumCover(string $artistName, string $albumTitle): ?DownloadedImage
+    {
+        // {"album": [...]} or {"album": null} when nothing matches.
+        foreach ($this->search('searchalbum.php', ['s' => $artistName, 'a' => $albumTitle], 'album') as $album) {
+            if (\is_string($album['strArtist'] ?? null) && self::isSameName($album['strArtist'], $artistName)
+                && \is_string($album['strAlbum'] ?? null) && self::isSameName($album['strAlbum'], $albumTitle)) {
+                return $this->downloadField($album, 'strAlbumThumb');
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, string> $query
+     *
+     * @return list<array<mixed>> The results, or an empty list when nothing matches
+     *
+     * @throws TheAudioDbUnavailable
+     */
+    private function search(string $endpoint, array $query, string $resultsKey): array
+    {
         $this->waitForTheRateLimit();
 
         try {
-            $response = $this->httpClient->request('GET', \sprintf(self::SEARCH_URL, rawurlencode(trim($this->apiKey))), [
-                'query' => ['s' => $artistName],
+            $response = $this->httpClient->request('GET', \sprintf(self::API_URL, rawurlencode(trim($this->apiKey)), $endpoint), [
+                'query' => $query,
                 'timeout' => 10,
             ]);
             $this->failUnlessAvailable($response);
@@ -62,22 +102,21 @@ final class TheAudioDb
             throw new TheAudioDbUnavailable(\sprintf('TheAudioDB could not be reached: %s', $e->getMessage()), previous: $e);
         }
 
-        // {"artists": [...]} or {"artists": null} when nothing matches.
-        $artists = $data['artists'] ?? null;
-        if (!\is_array($artists)) {
-            return null;
-        }
+        $results = $data[$resultsKey] ?? null;
 
-        foreach ($artists as $artist) {
-            if (!\is_array($artist) || !\is_string($artist['strArtist'] ?? null) || !self::isSameName($artist['strArtist'], $artistName)) {
-                continue;
-            }
-            $thumb = $artist['strArtistThumb'] ?? null;
+        return \is_array($results) ? array_values(array_filter($results, \is_array(...))) : [];
+    }
 
-            return \is_string($thumb) && '' !== $thumb ? $this->download($thumb) : null;
-        }
+    /**
+     * @param array<mixed> $result
+     *
+     * @throws TheAudioDbUnavailable
+     */
+    private function downloadField(array $result, string $field): ?DownloadedImage
+    {
+        $url = $result[$field] ?? null;
 
-        return null;
+        return \is_string($url) && '' !== $url ? $this->download($url) : null;
     }
 
     /**

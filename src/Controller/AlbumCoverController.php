@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Library\AlbumCovers;
 use App\Library\CoverFinder;
 use App\Library\LibraryFiles;
 use App\Repository\AlbumRepository;
@@ -13,8 +14,9 @@ use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Serves the cover image of an album. Access needs a JWT or the signature of the
- * album's coverUrl, because <img> elements can't send headers.
+ * Serves the cover image of an album, from its folder or else downloaded from TheAudioDB
+ * (see AlbumCovers). Access needs a JWT or the signature of the album's coverUrl, because
+ * <img> elements can't send headers.
  */
 final class AlbumCoverController extends AbstractController
 {
@@ -24,6 +26,7 @@ final class AlbumCoverController extends AbstractController
     public function __construct(
         private readonly AlbumRepository $albums,
         private readonly LibraryFiles $files,
+        private readonly AlbumCovers $albumCovers,
     ) {
     }
 
@@ -33,9 +36,15 @@ final class AlbumCoverController extends AbstractController
         $this->files->denyUnlessAuthorized($request);
 
         $album = $this->albums->find(Uuid::fromString($id)) ?? throw $this->createNotFoundException('Album not found.');
-        $coverPath = $album->getCoverPath() ?? throw $this->createNotFoundException('This album has no cover.');
+        if (!$album->hasCover()) {
+            throw $this->createNotFoundException('This album has no cover.');
+        }
 
-        $response = $this->files->response($coverPath, CoverFinder::mimeType($coverPath), 'The cover of this album is missing from the library. Scan the library again.');
+        $coverPath = $album->getCoverPath();
+        $file = (null !== $coverPath ? $this->files->path($coverPath) : $this->albumCovers->downloadedFile($album))
+            ?? throw $this->createNotFoundException('The cover of this album is missing. Scan the library again.');
+
+        $response = $this->files->fileResponse($file, CoverFinder::mimeType($file));
         $response->setMaxAge(self::MAX_AGE_SECONDS);
 
         return $response;

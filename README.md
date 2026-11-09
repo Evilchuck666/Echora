@@ -27,7 +27,7 @@ The backend and the clients are separate projects that talk only through the API
 
 - **Your music folder is the library**: Echora reads the tags of your FLAC and MP3 files and builds a catalog of artists, albums and tracks. The folder is mounted read-only, so your files are never modified.
 - **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
-- **Covers, artist images and lyrics**: album covers come from the album folder, artist images from the artist folder (or else from [TheAudioDB](https://www.theaudiodb.com)), lyrics from the tags.
+- **Covers, artist images and lyrics**: album covers come from the album folder and artist images from the artist folder, or else from [TheAudioDB](https://www.theaudiodb.com); lyrics come from the tags.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
 - **Browsable API**: artists, albums and tracks with pagination, filters and a search across the whole library that ignores accents, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
 - **User accounts**: sign in with a username and password, get a JWT and a refresh token that keeps apps signed in. Audio players get signed, expiring URLs, so an `<audio>` element can play tracks without sending any header.
@@ -101,7 +101,7 @@ The cover of an album is the first image of its folder named `folder`, `cover`, 
 
 The image of an artist is the first one named `artist` or `folder` (in that order, any case; JPEG, PNG or WebP) in the artist folder: the folder that holds all of the artist's album folders, like `Accept/` for `Accept/1983 - Balls to the Wall/`. Artists whose albums are spread around or sit at the root of the library have no artist folder, and neither do artists who only appear on tracks of other artists' albums.
 
-Artists without an image of their own are looked up on [TheAudioDB](https://www.theaudiodb.com), and their photo is downloaded (artist images by TheAudioDB's community; see its [terms](https://www.theaudiodb.com/docs_terms_of_use.php)). A scan sends at most 30 lookups a minute, as TheAudioDB's free key allows, and an artist that wasn't found is asked again a month later. Scan with `--offline` to skip the lookups, or set `THEAUDIODB_API_KEY` empty (in `.env.local`, or in `prod.env` in production) to never contact TheAudioDB.
+Albums without a cover in their folder and artists without an image of their own are looked up on [TheAudioDB](https://www.theaudiodb.com), and the cover or photo is downloaded (images by TheAudioDB's community; see its [terms](https://www.theaudiodb.com/docs_terms_of_use.php)). Only an exact match is taken: same album artist and album title (or artist name), ignoring case and accents. A scan sends at most 30 lookups a minute, as TheAudioDB's free key allows, so the first scan of a large library without covers can take a while; an album or artist that wasn't found is asked again a month later, and a cover added to the album folder later replaces the downloaded one. Scan with `--offline` to skip the lookups, or set `THEAUDIODB_API_KEY` empty (in `.env.local`, or in `prod.env` in production) to never contact TheAudioDB.
 
 The API serves artist images as thumbnails: square JPEGs of at most 300 pixels a side, made on the first request and kept in `var/media`.
 
@@ -206,7 +206,7 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 
-Artist images downloaded from TheAudioDB and the thumbnails are kept in the `media` volume. Losing it costs nothing but time: thumbnails are made again on request, and the next scan downloads the images again.
+Album covers and artist images downloaded from TheAudioDB and the thumbnails are kept in the `media` volume. Losing it costs nothing but time: thumbnails are made again on request, and the next scan downloads the images again.
 
 ---
 

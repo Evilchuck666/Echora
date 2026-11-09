@@ -40,7 +40,7 @@ final readonly class SignedUrlGenerator
      */
     public function cover(Album $album): ?string
     {
-        if (null === $album->getCoverPath()) {
+        if (!$album->hasCover()) {
             return null;
         }
 

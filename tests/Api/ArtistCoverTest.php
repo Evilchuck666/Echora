@@ -7,12 +7,8 @@ use ApiPlatform\Test\Client;
 use App\Entity\Artist;
 use App\Library\LibraryScanner;
 use App\Library\ScanReport;
-use App\Library\TheAudioDb;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\HttpClient\MockHttpClient;
-use Symfony\Component\HttpClient\Response\MockResponse;
 
 /**
  * The fixtures (tests/Fixtures/music) give one artist of each kind: Test Artist has artist.jpg
@@ -22,14 +18,12 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 final class ArtistCoverTest extends ApiTestCase
 {
     use CreatesUsers;
+    use FakesTheAudioDb;
 
     protected static ?bool $alwaysBootKernel = true;
 
     private Client $client;
     private string $token;
-
-    /** @var list<string> Artists searched on the fake TheAudioDB */
-    private array $searches = [];
 
     protected function setUp(): void
     {
@@ -112,12 +106,12 @@ final class ArtistCoverTest extends ApiTestCase
 
     public function testImagesMissingFromTheArtistFoldersAreDownloadedFromTheAudioDb(): void
     {
-        $this->fakeTheAudioDb(['Guest Artist']);
+        $this->fakeTheAudioDb(artists: ['Guest Artist']);
 
         $report = $this->scan();
 
-        sort($this->searches);
-        self::assertSame(['Guest Artist', 'Unknown Artist', 'Various Artists'], $this->searches, 'Test Artist has an image of its own.');
+        sort($this->artistSearches);
+        self::assertSame(['Guest Artist', 'Unknown Artist', 'Various Artists'], $this->artistSearches, 'Test Artist has an image of its own.');
         self::assertSame(1, $report->artistImagesDownloaded);
         self::assertNotNull($this->artist('Guest Artist')->getDownloadedImage());
 
@@ -128,70 +122,40 @@ final class ArtistCoverTest extends ApiTestCase
 
     public function testArtistsAreNotLookedUpAgainBeforeAMonth(): void
     {
-        $this->fakeTheAudioDb(['Guest Artist']);
+        $this->fakeTheAudioDb(artists: ['Guest Artist']);
         $this->scan();
-        $this->searches = [];
+        $this->artistSearches = [];
 
         $this->scan();
 
-        self::assertSame([], $this->searches);
+        self::assertSame([], $this->artistSearches);
     }
 
     public function testTheRateLimitStopsTheLookupsButNotTheScan(): void
     {
-        $this->fakeTheAudioDb([], status: 429);
+        $this->fakeTheAudioDb(status: 429);
 
         $report = $this->scan();
 
-        self::assertCount(1, $this->searches, 'No more requests after a 429.');
-        self::assertStringContainsString('429', (string) $report->artistImageLookupFailure);
+        // Album covers are looked up first: the first 429 stops the artist lookups too.
+        self::assertCount(1, [...$this->albumSearches, ...$this->artistSearches], 'No more requests after a 429.');
+        self::assertStringContainsString('429', (string) $report->theAudioDbFailure);
         self::assertSame('Test Artist/artist.jpg', $this->artist('Test Artist')->getImagePath(), 'Local images are still found.');
     }
 
     public function testOfflineScansDontContactTheAudioDb(): void
     {
-        $this->fakeTheAudioDb(['Guest Artist']);
+        $this->fakeTheAudioDb(artists: ['Guest Artist']);
 
         self::getContainer()->get(LibraryScanner::class)->scan(download: false);
 
-        self::assertSame([], $this->searches);
+        self::assertSame([], [...$this->albumSearches, ...$this->artistSearches]);
     }
 
     private function scan(): ScanReport
     {
         // Scans tests/Fixtures/music (MUSIC_LIBRARY_PATH in .env.test).
         return self::getContainer()->get(LibraryScanner::class)->scan();
-    }
-
-    /**
-     * Replaces TheAudioDB with a fake that knows the given artists, with a 16×16 image each.
-     *
-     * @param list<string> $known
-     */
-    private function fakeTheAudioDb(array $known, int $status = 200): void
-    {
-        $image = imagecreatetruecolor(16, 16);
-        \assert(false !== $image);
-        ob_start();
-        imagejpeg($image);
-        $jpeg = (string) ob_get_clean();
-
-        $client = new MockHttpClient(function (string $method, string $url) use ($known, $status, $jpeg): MockResponse {
-            if (str_contains($url, '/images/')) {
-                return new MockResponse($jpeg, ['response_headers' => ['content-type' => 'image/jpeg']]);
-            }
-            parse_str((string) parse_url($url, \PHP_URL_QUERY), $query);
-            $name = $query['s'] ?? null;
-            \assert(\is_string($name));
-            $this->searches[] = $name;
-            $artists = \in_array($name, $known, true)
-                ? [['strArtist' => $name, 'strArtistThumb' => 'https://r2.theaudiodb.com/images/media/artist/thumb/'.rawurlencode($name).'.jpg']]
-                : null;
-
-            return new MockResponse(json_encode(['artists' => $artists], \JSON_THROW_ON_ERROR), ['http_code' => $status]);
-        });
-
-        self::getContainer()->set(TheAudioDb::class, new TheAudioDb($client, new MockClock(), '123'));
     }
 
     private function artist(string $name): Artist

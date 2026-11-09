@@ -57,10 +57,10 @@ final readonly class LibraryFilesOpenApiFactory implements OpenApiFactoryInterfa
             responses: [
                 '200' => new Response('The cover image', $this->binary('image/jpeg', 'image/png', 'image/webp')),
                 '401' => new Response('Neither a valid JWT nor a valid, unexpired signature'),
-                '404' => new Response('The album does not exist, has no cover, or its cover is missing from the library'),
+                '404' => new Response('The album does not exist or has no cover, or its cover is missing'),
             ],
             summary: 'Returns the cover image of an album',
-            description: 'Returns the cover found in the album folder (folder, cover, front or album, in JPEG, PNG or WebP). '
+            description: 'Returns the cover found in the album folder (folder, cover, front or album, in JPEG, PNG or WebP), or else downloaded from TheAudioDB (theaudiodb.com). '
                 .'Authenticate with a JWT, or call the coverUrl of the album as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.',
             parameters: [$this->id('Album identifier'), ...$this->signature('coverUrl')],
             security: [['JWT' => []], []],

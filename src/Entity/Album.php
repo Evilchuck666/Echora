@@ -44,11 +44,19 @@ class Album
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $coverPath = null;
 
+    /** File name of the cover downloaded from TheAudioDB, in the media folder; used when the album folder has none. Never exposed. */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $downloadedCover = null;
+
+    /** When TheAudioDB was last asked for the cover of this album, found or not. Never exposed. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $coverLookedUpAt = null;
+
     /**
      * Signed URL of the cover image, usable without an Authorization header
      * (e.g. as the src of an <img>). Not stored: filled when the album is serialized.
      */
-    #[ApiProperty(description: 'Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img>')]
+    #[ApiProperty(description: 'Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img>')]
     #[Groups(['album:read', 'track:read'])]
     private ?string $coverUrl = null;
 
@@ -100,6 +108,32 @@ class Album
     public function setCoverPath(?string $coverPath): void
     {
         $this->coverPath = $coverPath;
+    }
+
+    public function getDownloadedCover(): ?string
+    {
+        return $this->downloadedCover;
+    }
+
+    public function setDownloadedCover(?string $downloadedCover): void
+    {
+        $this->downloadedCover = $downloadedCover;
+    }
+
+    public function getCoverLookedUpAt(): ?\DateTimeImmutable
+    {
+        return $this->coverLookedUpAt;
+    }
+
+    public function setCoverLookedUpAt(?\DateTimeImmutable $coverLookedUpAt): void
+    {
+        $this->coverLookedUpAt = $coverLookedUpAt;
+    }
+
+    /** Whether the album has a cover to serve, local or downloaded. */
+    public function hasCover(): bool
+    {
+        return null !== $this->coverPath || null !== $this->downloadedCover;
     }
 
     public function getCoverUrl(): ?string

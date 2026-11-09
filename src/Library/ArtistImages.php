@@ -80,12 +80,12 @@ final readonly class ArtistImages
             }
 
             $lookedUpAt = $artist->getImageLookedUpAt();
-            if ($download && null === $report->artistImageLookupFailure && !$artist->hasImage() && (null === $lookedUpAt || $lookedUpAt < $lookUpBefore)) {
+            if ($download && null === $report->theAudioDbFailure && !$artist->hasImage() && (null === $lookedUpAt || $lookedUpAt < $lookUpBefore)) {
                 try {
                     $this->download($artist, $report);
                 } catch (TheAudioDbUnavailable $e) {
                     // Stop asking for this scan; the artists left are looked up next time.
-                    $report->artistImageLookupFailure = $e->getMessage();
+                    $report->theAudioDbFailure = $e->getMessage();
                 }
             }
 

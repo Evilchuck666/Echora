@@ -94,6 +94,49 @@ final class TheAudioDbTest extends TestCase
         self::assertGreaterThanOrEqual(2.0, (float) $clock->now()->format('U.u') - (float) (new \DateTimeImmutable('2026-01-01 12:00:00'))->format('U.u'));
     }
 
+    public function testItDownloadsTheCoverOfTheAlbumWithTheSameArtistAndTitle(): void
+    {
+        $cover = 'https://r2.theaudiodb.com/images/media/album/thumb/ace.jpg';
+        $theAudioDb = $this->theAudioDb([
+            new MockResponse(json_encode(['album' => [
+                ['strArtist' => 'Motörhead', 'strAlbum' => 'Ace of Spades (Deluxe)', 'strAlbumThumb' => 'https://r2.theaudiodb.com/images/media/album/thumb/deluxe.jpg'],
+                ['strArtist' => 'Motörhead', 'strAlbum' => 'Ace of Spades', 'strAlbumThumb' => $cover],
+            ]], \JSON_THROW_ON_ERROR)),
+            new MockResponse('png bytes', ['response_headers' => ['content-type' => 'image/png']]),
+        ]);
+
+        $image = $theAudioDb->findAlbumCover('Motorhead', 'ace of spades');
+
+        self::assertNotNull($image);
+        self::assertSame(['png bytes', 'png'], [$image->content, $image->extension]);
+        self::assertSame('https://www.theaudiodb.com/api/v1/json/123/searchalbum.php?s=Motorhead&a=ace%20of%20spades', $this->requests[0][1]);
+        self::assertSame($cover, $this->requests[1][1]);
+    }
+
+    public function testAnAlbumOfAnotherArtistIsNotTaken(): void
+    {
+        $theAudioDb = $this->theAudioDb([new MockResponse(json_encode(['album' => [
+            ['strArtist' => 'Saxon', 'strAlbum' => 'Unleash the Beast', 'strAlbumThumb' => 'https://r2.theaudiodb.com/images/media/album/thumb/saxon.jpg'],
+        ]], \JSON_THROW_ON_ERROR))]);
+
+        self::assertNull($theAudioDb->findAlbumCover('Accept', 'Unleash the Beast'));
+        self::assertCount(1, $this->requests, 'Nothing was downloaded.');
+    }
+
+    public function testNoAlbumMatchGivesNothing(): void
+    {
+        self::assertNull($this->theAudioDb([new MockResponse('{"album":null}')])->findAlbumCover('Nobody', 'Nothing'));
+    }
+
+    public function testAnAlbumWithoutCoverGivesNothing(): void
+    {
+        $theAudioDb = $this->theAudioDb([new MockResponse(json_encode(['album' => [
+            ['strArtist' => 'Accept', 'strAlbum' => 'Restless and Wild', 'strAlbumThumb' => ''],
+        ]], \JSON_THROW_ON_ERROR))]);
+
+        self::assertNull($theAudioDb->findAlbumCover('Accept', 'Restless and Wild'));
+    }
+
     public function testAnEmptyKeyTurnsItOff(): void
     {
         self::assertFalse((new TheAudioDb(new MockHttpClient(), new MockClock(), ''))->isEnabled());

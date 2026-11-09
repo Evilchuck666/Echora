@@ -12,11 +12,12 @@ final class ScanReport
     public int $unchanged = 0;
     public int $removed = 0;
     public int $coversUpdated = 0;
+    public int $coversDownloaded = 0;
     public int $artistImagesUpdated = 0;
     public int $artistImagesDownloaded = 0;
 
-    /** Why TheAudioDB lookups stopped during this scan, if they did. */
-    public ?string $artistImageLookupFailure = null;
+    /** Why TheAudioDB lookups (album covers, artist images) stopped during this scan, if they did. */
+    public ?string $theAudioDbFailure = null;
 
     /** @var array<string, string> Error message per file path (relative to the library) */
     public array $failed = [];

@@ -18,7 +18,7 @@ services:
       - ${MUSIC_DIR:?Set MUSIC_DIR to the folder that holds your music (see prod.env.example)}:/music:ro
       # JWT signing keys, generated on the first start. Losing them signs everyone out.
       - jwt_keys:/app/config/jwt
-      # Artist images downloaded from TheAudioDB, and thumbnails. Losing it only means downloading them again.
+      # Album covers and artist images downloaded from TheAudioDB, and thumbnails. Losing it only means downloading them again.
       - media:/app/var/media
 
 volumes:
