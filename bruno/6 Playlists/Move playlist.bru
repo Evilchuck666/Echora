@@ -1,0 +1,34 @@
+meta {
+  name: Move playlist
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/playlists/{{playlistId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/merge-patch+json
+}
+
+body:json {
+  {
+    "position": 99
+  }
+}
+
+tests {
+  test("moves the playlist to the end of the user's playlists", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.position).to.be.at.least(0);
+  });
+}
+
+docs {
+  Moves the playlist remembered by **Create playlist** among the user's playlists: `position` is the index from 0 in the current order, and the ones in between shift by one. Beyond the last playlist (here 99) means the end; a negative position is a 422. `name` may come in the same request. Moving doesn't change `updatedAt`.
+
+  Positions are indexes in the order the API has when the request arrives: send moves one at a time. Needs `Content-Type: application/merge-patch+json` (415 otherwise).
+}

@@ -6,5 +6,5 @@ meta {
 docs {
   The playlists of the signed-in user, in order. Run **3 Library / List tracks** first: **Add tracks to playlist** uses the track it found (`trackId`) and the FLAC tracks (`opusTrackIds`). **Create playlist** remembers the new playlist (`playlistId`), **List playlist items** its last item (`playlistItemId`).
 
-  Only the owner sees a playlist: for anyone else it is a 404. The two PATCH requests send `application/merge-patch+json`, as API Platform requires.
+  Only the owner sees a playlist: for anyone else it is a 404. Each user orders their playlists (`position`, the same on every device); a new one comes first. The PATCH requests send `application/merge-patch+json`, as API Platform requires.
 }

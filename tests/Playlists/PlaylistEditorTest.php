@@ -6,6 +6,7 @@ use App\Doctrine\SqlValue;
 use App\Entity\Playlist;
 use App\Entity\User;
 use App\Library\LibraryScanner;
+use App\Ordering\SortKeys;
 use App\Playlists\PlaylistEditor;
 use App\Repository\TrackRepository;
 use Doctrine\DBAL\Connection;
@@ -31,7 +32,7 @@ final class PlaylistEditorTest extends KernelTestCase
         $this->editor = self::getContainer()->get(PlaylistEditor::class);
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $this->user = new User('editor');
-        $this->playlist = new Playlist($this->user, 'Order');
+        $this->playlist = new Playlist($this->user, 'Order', SortKeys::STEP);
         $entityManager->persist($this->user);
         $entityManager->persist($this->playlist);
         $entityManager->flush();
@@ -53,7 +54,7 @@ final class PlaylistEditorTest extends KernelTestCase
         }
 
         // The first item never moved: its key is still one step unless renumbering moved every key above the highest.
-        self::assertGreaterThan(PlaylistEditor::SORT_KEY_STEP, $this->lowestKey(), 'The keys were spread again.');
+        self::assertGreaterThan(SortKeys::STEP, $this->lowestKey(), 'The keys were spread again.');
     }
 
     public function testAnyMixOfAddingMovingAndRemovingKeepsTheExpectedOrder(): void

@@ -6,7 +6,9 @@ use App\Doctrine\SqlValue;
 use App\Entity\Playlist;
 use App\Entity\User;
 use App\Library\LibraryScanner;
+use App\Ordering\SortKeys;
 use App\Playlists\PlaylistEditor;
+use App\Playlists\PlaylistOrder;
 use App\Repository\TrackRepository;
 use DAMA\DoctrineTestBundle\PHPUnit\SkipDatabaseRollback;
 use Doctrine\DBAL\Connection;
@@ -42,7 +44,7 @@ final class PlaylistConcurrencyTest extends KernelTestCase
     {
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $user = new User('two-tabs');
-        $playlist = new Playlist($user, 'Shared by two tabs');
+        $playlist = new Playlist($user, 'Shared by two tabs', SortKeys::STEP);
         $entityManager->persist($user);
         $entityManager->persist($playlist);
         $entityManager->flush();
@@ -62,9 +64,13 @@ final class PlaylistConcurrencyTest extends KernelTestCase
             $processes[] = $this->start(['add', 'two-tabs', $playlistId, $track, $track]);
         }
         $processes[] = $this->start(['move', 'two-tabs', $movedItem, '99']);
-        $this->waitUntilWaitingForALock(\count($processes));
-        $otherTab->commit();
-        $otherTab->close();
+        try {
+            $this->waitUntilWaitingForALock(\count($processes));
+        } finally {
+            // Always let go, or a failure would leave the lock held and tearDown() waiting for it forever.
+            $otherTab->commit();
+            $otherTab->close();
+        }
 
         foreach ($processes as $process) {
             $process->wait();
@@ -90,6 +96,46 @@ final class PlaylistConcurrencyTest extends KernelTestCase
         self::assertSame($first, $order[0], 'The other copy of the first track is now first.');
     }
 
+    public function testTwoDevicesReorderingTheSamePlaylistsAtOnceWaitForEachOther(): void
+    {
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $user = new User('two-devices');
+        $entityManager->persist($user);
+        $entityManager->flush();
+        $order = self::getContainer()->get(PlaylistOrder::class);
+        $existing = array_map(static fn (string $name): string => $order->create($user, $name)->getId()->toRfc4122(), ['One', 'Two', 'Three']);
+        $userId = $user->getId()->toRfc4122();
+
+        // Another device holds the user's order while four changes arrive.
+        /** @phpstan-ignore argument.type (the parameters of the test connection itself) */
+        $otherDevice = DriverManager::getConnection($this->connection->getParams(), $this->connection->getConfiguration());
+        $otherDevice->beginTransaction();
+        $otherDevice->fetchOne('SELECT 1 FROM app_user WHERE id = ? FOR NO KEY UPDATE', [$userId]);
+
+        $processes = [
+            $this->start(['create-playlist', 'two-devices', 'From the phone']),
+            $this->start(['create-playlist', 'two-devices', 'From the tablet']),
+            $this->start(['move-playlist', 'two-devices', $existing[0], '0']),
+            $this->start(['move-playlist', 'two-devices', $existing[2], '99']),
+        ];
+        try {
+            $this->waitUntilWaitingForALock(\count($processes));
+        } finally {
+            // Always let go, or a failure would leave the lock held and tearDown() waiting for it forever.
+            $otherDevice->commit();
+            $otherDevice->close();
+        }
+
+        foreach ($processes as $process) {
+            $process->wait();
+            self::assertTrue($process->isSuccessful(), $process->getErrorOutput().$process->getOutput());
+        }
+
+        $names = SqlValue::strings($this->connection->fetchFirstColumn('SELECT name FROM playlist WHERE owner_id = ? ORDER BY sort_key', [$userId]));
+        self::assertCount(5, $names, 'Every change was made.');
+        self::assertEqualsCanonicalizing(['One', 'Two', 'Three', 'From the phone', 'From the tablet'], $names);
+    }
+
     /**
      * @param list<string> $arguments
      */
@@ -113,6 +159,6 @@ final class PlaylistConcurrencyTest extends KernelTestCase
             usleep(100_000);
         } while (microtime(true) < $deadline);
 
-        self::fail(\sprintf('Only %d of the %d changes waited for the playlist.', $waiting, $processes));
+        self::fail(\sprintf('Only %d of the %d changes waited for the lock.', $waiting, $processes));
     }
 }

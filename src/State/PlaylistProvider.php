@@ -6,15 +6,17 @@ use ApiPlatform\Doctrine\Orm\State\CollectionProvider;
 use ApiPlatform\Doctrine\Orm\State\ItemProvider;
 use ApiPlatform\Metadata\CollectionOperationInterface;
 use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\Pagination\Pagination;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Playlist;
+use App\Playlists\PlaylistOrder;
 use App\Playlists\PlaylistSummaries;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * GET /api/playlists and /api/playlists/{id}: the playlists from Doctrine (the user's only, see
  * App\Doctrine\OwnedByCurrentUserExtension), with their number of items, length and covers filled for the whole page
- * at once (App\Playlists\PlaylistSummaries).
+ * at once (App\Playlists\PlaylistSummaries), and their position in the user's order.
  *
  * @implements ProviderInterface<Playlist>
  */
@@ -30,6 +32,8 @@ final readonly class PlaylistProvider implements ProviderInterface
         #[Autowire(service: ItemProvider::class)]
         private ProviderInterface $itemProvider,
         private PlaylistSummaries $summaries,
+        private PlaylistOrder $order,
+        private Pagination $pagination,
     ) {
     }
 
@@ -38,7 +42,13 @@ final readonly class PlaylistProvider implements ProviderInterface
         if ($operation instanceof CollectionOperationInterface) {
             $playlists = $this->collectionProvider->provide($operation, $uriVariables, $context);
             if (is_iterable($playlists)) {
-                $this->summaries->fill($this->onlyPlaylists($playlists));
+                $page = $this->onlyPlaylists($playlists);
+                $this->summaries->fill($page);
+                // In the user's order: the index in the page plus the playlists of the pages before.
+                $position = $this->pagination->getOffset($operation, $context);
+                foreach ($page as $playlist) {
+                    $playlist->placeAt($position++);
+                }
             }
 
             return $playlists;
@@ -47,6 +57,7 @@ final readonly class PlaylistProvider implements ProviderInterface
         $playlist = $this->itemProvider->provide($operation, $uriVariables, $context);
         if ($playlist instanceof Playlist) {
             $this->summaries->fill([$playlist]);
+            $playlist->placeAt($this->order->positionOf($playlist));
         }
 
         return $playlist;

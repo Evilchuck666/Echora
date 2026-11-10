@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Playlists\PlaylistEditor;
 use App\Playlists\PlaylistFull;
 use App\Playlists\PlaylistNotFound;
+use App\Playlists\PlaylistOrder;
 use App\Playlists\PlaylistSummaries;
 use App\Playlists\UnknownTracks;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -30,6 +31,7 @@ final readonly class AddPlaylistTracksProcessor implements ProcessorInterface
         private PlaylistEditor $editor,
         private PlaylistSummaries $summaries,
         private Security $security,
+        private PlaylistOrder $order,
     ) {
     }
 
@@ -47,6 +49,7 @@ final readonly class AddPlaylistTracksProcessor implements ProcessorInterface
         }
 
         $this->summaries->fill([$playlist]);
+        $playlist->placeAt($this->order->positionOf($playlist));
 
         return $playlist;
     }

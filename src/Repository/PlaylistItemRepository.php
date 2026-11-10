@@ -2,7 +2,6 @@
 
 namespace App\Repository;
 
-use App\Doctrine\SqlValue;
 use App\Entity\PlaylistItem;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -31,16 +30,5 @@ class PlaylistItemRepository extends ServiceEntityRepository
         $item = $this->find(Uuid::fromString($id));
 
         return null !== $item && $item->getPlaylist()->isOwnedBy($user) ? $item : null;
-    }
-
-    /**
-     * Index of the item in its playlist, from 0.
-     */
-    public function positionOf(PlaylistItem $item): int
-    {
-        return SqlValue::int($this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT COUNT(*) FROM playlist_item WHERE playlist_id = ? AND sort_key < (SELECT sort_key FROM playlist_item WHERE id = ?)',
-            [$item->getPlaylist()->getId()->toRfc4122(), $item->getId()->toRfc4122()],
-        ));
     }
 }

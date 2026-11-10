@@ -170,9 +170,9 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `PUT /api/{tracks,albums,artists}/{id}/favourite` | Adds the item to your favourites (204; adding it twice is fine) |
 | `DELETE /api/{tracks,albums,artists}/{id}/favourite` | Removes it from your favourites (204; also when it wasn't one) |
 | `GET /api/favourites/{tracks,albums,artists}` | Your favourites of that kind, newest first |
-| `GET /api/playlists` | Your playlists, the most recently changed first |
+| `GET /api/playlists` | Your playlists, in the order you gave them (a new one comes first) |
 | `POST /api/playlists` | Creates an empty playlist: `{"name": "..."}` (201) |
-| `GET`, `PATCH`, `DELETE /api/playlists/{id}` | One of your playlists; `PATCH` renames it (`{"name": "..."}`) |
+| `GET`, `PATCH`, `DELETE /api/playlists/{id}` | One of your playlists; `PATCH` renames it (`{"name": "..."}`), moves it (`{"position": n}`) or both |
 | `GET /api/playlists/{id}/items` | Its items in order, each with its position and whole track |
 | `POST /api/playlists/{id}/items` | Adds tracks at the end: `{"tracks": [...]}` (all or none) |
 | `PATCH /api/playlist_items/{id}` | Moves an item: `{"position": n}` |
@@ -200,7 +200,9 @@ The conversions run in background workers (Symfony Messenger, with its queue in 
 
 ### Playlists
 
-Each account has its own playlists; no one else sees them (someone else's playlist, or one of its items, is a 404, as if it didn't exist). A playlist has a name (1 to 100 characters, without spaces at the start or the end, not necessarily unique), its creation and last change dates, and, in every response, its number of items (`trackCount`), their total length (`durationMs`, the tracks whose length is known) and up to four `covers`: the signed cover URLs of the first four different albums with a cover, in the order of the playlist, for a mosaic. Lists are ordered by last change, newest first; any change to a playlist or its items counts, including a scan removing one of its tracks.
+Each account has its own playlists; no one else sees them (someone else's playlist, or one of its items, is a 404, as if it didn't exist). A playlist has a name (1 to 100 characters, without spaces at the start or the end, not necessarily unique), its creation and last change dates, and, in every response, its number of items (`trackCount`), their total length (`durationMs`, the tracks whose length is known) and up to four `covers`: the signed cover URLs of the first four different albums with a cover, in the order of the playlist, for a mosaic. `updatedAt` changes with a new name or any change to the items, including a scan removing one of its tracks.
+
+Each user orders their playlists by hand, and the order is the same on every device: `GET /api/playlists` lists them in that order, each with its `position` (index from 0, always consecutive, also after one is deleted). A new playlist comes first (position 0) and the others move down by one. `PATCH /api/playlists/{id}` with `{"position": n}` (alone or with `name`) moves it there and shifts the ones in between; beyond the end means the end, a negative position is a `422`. Moving a playlist doesn't change its `updatedAt`. Existing playlists kept the order they had before (last changed first).
 
 The items of a playlist are tracks in an order, at most 10 000:
 
@@ -210,7 +212,7 @@ The items of a playlist are tracks in an order, at most 10 000:
 - `PATCH /api/playlist_items/{id}` with `{"position": n}` moves the item there and shifts the ones in between; beyond the end means the end, a negative position is a `422`;
 - `DELETE /api/playlist_items/{id}` removes that appearance only.
 
-A track that a scan removes disappears from every playlist, and the others keep their order. Moving or renaming files keeps them, as tracks are recognised by their audio. Changes to the same playlist are made one at a time, so two tabs or devices changing it at once never mix up its order.
+A track that a scan removes disappears from every playlist, and the others keep their order. Moving or renaming files keeps them, as tracks are recognised by their audio. Changes to the same playlist, and to the order of a user's playlists, are made one at a time, so two tabs or devices changing them at once never mix up the order. Positions are indexes in the order the API has when each request arrives: a client sends its moves one at a time, waiting for each answer, or a later move may be applied first and land one place off.
 
 ### Search
 

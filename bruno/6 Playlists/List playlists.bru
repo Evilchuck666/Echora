@@ -15,14 +15,14 @@ params:query {
 }
 
 tests {
-  test("lists the user's playlists, most recently changed first", function () {
+  test("lists the user's playlists in their order, with consecutive positions", function () {
     expect(res.status).to.equal(200);
     expect(res.body.member).to.be.an("array");
-    const dates = res.body.member.map((playlist) => playlist.updatedAt);
-    expect(dates).to.deep.equal([...dates].sort().reverse());
+    const first = (Number(req.getUrl().match(/page=(\d+)/)?.[1] || 1) - 1) * 30;
+    res.body.member.forEach((playlist, index) => expect(playlist.position).to.equal(first + index));
   });
 }
 
 docs {
-  The playlists of the signed-in user, the most recently changed first, 30 per page, each with `trackCount`, `durationMs` and up to 4 `covers`.
+  The playlists of the signed-in user, in the order they gave them (the same on every device; a new one comes first), 30 per page, each with its `position` (from 0), `trackCount`, `durationMs` and up to 4 `covers`.
 }

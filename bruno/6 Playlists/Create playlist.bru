@@ -27,9 +27,10 @@ tests {
     expect(res.status).to.equal(201);
     expect(res.body.trackCount).to.equal(0);
     expect(res.body.covers).to.be.an("array").that.is.empty;
+    expect(res.body.position).to.equal(0);
   });
 }
 
 docs {
-  Creates an empty playlist (201) and remembers it (`playlistId`). The name has 1 to 100 characters, without spaces at the start or the end; it need not be unique (422 otherwise).
+  Creates an empty playlist (201) and remembers it (`playlistId`). The name has 1 to 100 characters, without spaces at the start or the end; it need not be unique (422 otherwise). The new playlist comes first (`position` 0); the others move down by one.
 }

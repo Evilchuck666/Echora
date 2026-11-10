@@ -99,20 +99,92 @@ final class PlaylistsTest extends ApiTestCase
         self::assertCount(3, $this->playlistIris());
     }
 
-    public function testPlaylistsAreListedMostRecentlyChangedFirst(): void
+    public function testANewPlaylistComesFirstAndTheOthersMoveDown(): void
+    {
+        $first = $this->createPlaylist('First');
+        $second = $this->createPlaylist('Second');
+
+        $created = $this->request('POST', '/api/playlists', ['name' => 'Third']);
+        self::assertSame(0, $created->toArray()['position']);
+        $third = self::str($created->toArray()['@id']);
+
+        self::assertSame([$third, $second, $first], $this->playlistIris());
+        self::assertSame([0, 1, 2], $this->playlistPositions());
+        self::assertSame(2, $this->request('GET', $first)->toArray()['position']);
+    }
+
+    public function testAPlaylistMovesUpAndDownAndTheOthersShift(): void
+    {
+        [$c, $b, $a] = [$this->createPlaylist('A'), $this->createPlaylist('B'), $this->createPlaylist('C')];
+        [$a, $b, $c] = [$c, $b, $a]; // Listed C, B, A: the newest first.
+        self::assertSame([$c, $b, $a], $this->playlistIris());
+
+        $moved = $this->request('PATCH', $c, ['position' => 2]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(2, $moved->toArray()['position']);
+        self::assertSame([$b, $a, $c], $this->playlistIris());
+
+        self::assertSame(0, $this->request('PATCH', $c, ['position' => 0])->toArray()['position']);
+        self::assertSame([$c, $b, $a], $this->playlistIris());
+
+        self::assertSame(2, $this->request('PATCH', $b, ['position' => 99])->toArray()['position'], 'Beyond the end: to the end.');
+        self::assertSame([$c, $a, $b], $this->playlistIris());
+
+        $this->request('PATCH', $a, ['position' => -1]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([$c, $a, $b], $this->playlistIris());
+
+        $both = $this->request('PATCH', $b, ['name' => 'B, renamed', 'position' => 0])->toArray();
+        self::assertSame(['B, renamed', 0], [$both['name'], $both['position']]);
+        self::assertSame([$b, $c, $a], $this->playlistIris());
+        self::assertSame([0, 1, 2], $this->playlistPositions());
+    }
+
+    public function testPositionsStayConsecutiveWhenAPlaylistIsDeleted(): void
     {
         $first = $this->createPlaylist('First');
         $second = $this->createPlaylist('Second');
         $third = $this->createPlaylist('Third');
-        // Changed long ago, in creation order.
-        foreach (['First' => 3, 'Second' => 2, 'Third' => 1] as $name => $days) {
-            $this->connection()->executeStatement("UPDATE playlist SET updated_at = NOW() - INTERVAL '$days days' WHERE name = ?", [$name]);
-        }
-        self::assertSame([$third, $second, $first], $this->playlistIris());
 
-        $this->addTracks($first, [$this->trackId('Opening')]);
+        $this->request('DELETE', $second);
 
-        self::assertSame([$first, $third, $second], $this->playlistIris(), 'Adding a track changes the playlist.');
+        self::assertSame([$third, $first], $this->playlistIris());
+        self::assertSame([0, 1], $this->playlistPositions());
+        self::assertSame(1, $this->request('GET', $first)->toArray()['position']);
+    }
+
+    public function testMovingAPlaylistIsNotAChangeToIt(): void
+    {
+        $first = $this->createPlaylist('First');
+        $second = $this->createPlaylist('Second');
+        $this->connection()->executeStatement("UPDATE playlist SET updated_at = updated_at - INTERVAL '1 day'");
+        $before = $this->request('GET', $first)->toArray()['updatedAt'];
+
+        $this->request('PATCH', $first, ['position' => 0]);
+        $this->request('PATCH', $first, ['name' => 'First']);
+        self::assertSame($before, $this->request('GET', $first)->toArray()['updatedAt'], 'Moved, and given the same name: unchanged.');
+
+        $this->addTracks($second, [$this->trackId('Opening')]);
+        self::assertSame([$first, $second], $this->playlistIris(), 'A change to a playlist doesn\'t move it.');
+
+        $this->request('PATCH', $first, ['name' => 'First, renamed']);
+        self::assertGreaterThan($before, $this->request('GET', $first)->toArray()['updatedAt']);
+    }
+
+    public function testEachUserHasTheirOwnOrder(): void
+    {
+        $mine = [$this->createPlaylist('Mine 1'), $this->createPlaylist('Mine 2')];
+        $myToken = $this->token;
+        $this->token = self::tokenFor(self::createUser('someone-else'));
+        $theirs = [$this->createPlaylist('Theirs 1'), $this->createPlaylist('Theirs 2'), $this->createPlaylist('Theirs 3')];
+        $this->request('PATCH', $theirs[2], ['position' => 2]);
+        $this->request('PATCH', $mine[0], ['position' => 0]);
+        self::assertResponseStatusCodeSame(404, 'Nobody moves someone else\'s playlist.');
+        self::assertSame([$theirs[1], $theirs[0], $theirs[2]], $this->playlistIris());
+
+        $this->token = $myToken;
+        self::assertSame([$mine[1], $mine[0]], $this->playlistIris());
+        self::assertSame([0, 1], $this->playlistPositions());
     }
 
     public function testEachUserOnlySeesTheirOwnPlaylists(): void
@@ -420,6 +492,14 @@ final class PlaylistsTest extends ApiTestCase
     private function playlistIris(): array
     {
         return array_map(self::str(...), array_column(self::arr($this->request('GET', '/api/playlists')->toArray()['member']), '@id'));
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function playlistPositions(): array
+    {
+        return array_column(self::arr($this->request('GET', '/api/playlists')->toArray()['member']), 'position');
     }
 
     /**
