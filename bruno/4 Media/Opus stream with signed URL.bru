@@ -1,0 +1,26 @@
+meta {
+  name: Opus stream with signed URL
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{opusStreamUrl}}
+  body: none
+  auth: none
+}
+
+headers {
+  Range: bytes=0-1023
+}
+
+tests {
+  test("plays the Opus version without an Authorization header", function () {
+    expect(res.status).to.equal(206);
+    expect(res.headers["content-type"]).to.match(/^audio\/ogg/);
+  });
+}
+
+docs {
+  Calls the signed `opusStreamUrl` of the first FLAC track found by **List tracks**, without any authentication, the way an `<audio>` element or a media player would. Like `streamUrl`, it expires after six hours.
+}

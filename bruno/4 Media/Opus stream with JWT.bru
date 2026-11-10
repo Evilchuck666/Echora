@@ -1,0 +1,27 @@
+meta {
+  name: Opus stream with JWT
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/tracks/{{opusTrackId}}/stream/opus
+  body: none
+  auth: inherit
+}
+
+headers {
+  Range: bytes=0-1023
+}
+
+tests {
+  test("returns the first KiB of the track converted to Opus", function () {
+    expect(res.status).to.equal(206);
+    expect(res.headers["content-range"]).to.match(/^bytes 0-1023\//);
+    expect(res.headers["content-type"]).to.match(/^audio\/ogg/);
+  });
+}
+
+docs {
+  Asks for the first 1024 bytes of the Opus version of the first FLAC track found by **List tracks**. The first request for a track converts it, which takes a few seconds; later ones are served from the server's cache. MP3 tracks aren't converted (404).
+}

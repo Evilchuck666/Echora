@@ -1,0 +1,9 @@
+# Scheduled jobs, run by Supercronic inside the php container (started by docker-entrypoint next to FrankenPHP).
+# Times are UTC. Copied into the image: rebuild it after a change (docker compose up --build --wait).
+# Syntax: https://github.com/aptible/supercronic#crontab-format
+
+# Every Sunday at 04:00: delete the Opus versions of tracks that nobody played in the last 30 days.
+0 4 * * 0 php /app/bin/console app:transcodes:prune --no-interaction
+
+# Every Sunday at 04:30: delete expired cache entries, e.g. spent refresh tokens older than 30 days.
+30 4 * * 0 php /app/bin/console cache:pool:prune --no-interaction

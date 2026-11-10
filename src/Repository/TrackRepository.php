@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Track;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<Track>
@@ -35,6 +36,20 @@ class TrackRepository extends ServiceEntityRepository
         }
 
         return $states;
+    }
+
+    /**
+     * @return list<string> Identifiers (RFC 4122) of every track
+     */
+    public function findAllIds(): array
+    {
+        $ids = $this->createQueryBuilder('t')->select('t.id')->getQuery()->getSingleColumnResult();
+
+        return array_values(array_map(static function (mixed $id): string {
+            \assert($id instanceof Uuid || \is_string($id));
+
+            return $id instanceof Uuid ? $id->toRfc4122() : Uuid::fromString($id)->toRfc4122();
+        }, $ids));
     }
 
     /**

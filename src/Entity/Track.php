@@ -18,7 +18,8 @@ use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream.
+ * An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+ * files, converted to Opus by GET /api/tracks/{id}/stream/opus.
  */
 #[ORM\Entity(repositoryClass: TrackRepository::class)]
 #[ApiResource(
@@ -106,6 +107,13 @@ class Track
     #[ApiProperty(description: 'Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element')]
     #[Groups(['track:read'])]
     private ?string $streamUrl = null;
+
+    /**
+     * Signed URL of the audio converted to Opus (App\Library\OpusTranscoder), for FLAC tracks only. Not stored.
+     */
+    #[ApiProperty(description: 'Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds)')]
+    #[Groups(['track:read'])]
+    private ?string $opusStreamUrl = null;
 
     /**
      * @param string $path Path of the audio file, relative to the music library folder. Never exposed.
@@ -225,5 +233,23 @@ class Track
     public function setStreamUrl(string $streamUrl): void
     {
         $this->streamUrl = $streamUrl;
+    }
+
+    /**
+     * Only lossless files are converted: an MP3 converted to Opus would lose quality twice.
+     */
+    public function isAvailableInOpus(): bool
+    {
+        return 'flac' === $this->format;
+    }
+
+    public function getOpusStreamUrl(): ?string
+    {
+        return $this->opusStreamUrl;
+    }
+
+    public function setOpusStreamUrl(?string $opusStreamUrl): void
+    {
+        $this->opusStreamUrl = $opusStreamUrl;
     }
 }

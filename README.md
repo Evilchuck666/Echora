@@ -29,6 +29,7 @@ The backend and the clients are separate projects that talk only through the API
 - **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
 - **Covers, artist images and lyrics**: album covers come from the album folder and artist images from the artist folder, or else from [TheAudioDB](https://www.theaudiodb.com); lyrics come from the tags.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
+- **Opus for slow connections**: FLAC tracks can also be streamed converted to Opus (256 kbit/s, about a quarter of the size), converted on the first request and kept on the server.
 - **Browsable API**: artists, albums and tracks with pagination, filters and a search across the whole library that ignores accents, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
 - **User accounts**: sign in with a username and password, get a JWT and a refresh token that keeps apps signed in. Audio players get signed, expiring URLs, so an `<audio>` element can play tracks without sending any header.
 
@@ -138,6 +139,8 @@ Open **https://localhost/api** in a browser to explore every endpoint. The OpenA
 
 Every track includes a `streamUrl`: a signed link to its audio, valid for six hours, that works without the `Authorization` header. Use it as the `src` of an `<audio>` element or hand it to a native media player. When it expires, fetch the track again for a new one.
 
+FLAC tracks also include an `opusStreamUrl`, signed and valid like `streamUrl`: the same audio converted to Opus (Ogg, 256 kbit/s), about a quarter of the size of the FLAC file, for mobile data or slow connections. The first request for a track waits for the conversion (a few seconds for a song); the result is kept in `var/media`, so later requests start at once. MP3 tracks aren't converted (an MP3 would lose quality twice) and have no `opusStreamUrl`: play their `streamUrl`.
+
 Likewise, every album (also when embedded in a track) includes a `coverUrl`, and so does every artist (a thumbnail of its image); it is left out when there is no image. Use it as the `src` of an `<img>`: it stays the same for a day, so browsers cache the image.
 
 ### Endpoints
@@ -154,6 +157,7 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `GET /api/search?q=...` | Artists, albums and tracks matching a search, at once (see below) |
 | `GET /api/{artists,albums,tracks}/{id}` | One item. A single track also includes its `lyrics`; lists only say `hasLyrics` |
 | `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support. Use the track's `streamUrl` |
+| `GET /api/tracks/{id}/stream/opus` | The audio of a FLAC track converted to Opus, with HTTP Range support. Use the track's `opusStreamUrl` |
 | `GET /api/albums/{id}/cover` | The cover image. Use the album's `coverUrl` |
 | `GET /api/artists/{id}/cover` | A thumbnail of the artist's image (JPEG, up to 300×300). Use the artist's `coverUrl` |
 
@@ -217,11 +221,18 @@ To update, pull both repositories and run the `build` and `up` commands again: t
 
 After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once).
 
-Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one. Expired entries stay until removed: run `bin/console cache:pool:prune` now and then (e.g. weekly from cron, with the same `docker compose ... exec php` prefix).
+Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one.
+
+The `php` container runs its own scheduled jobs (`frankenphp/crontab`, with [Supercronic](https://github.com/aptible/supercronic)), so the host needs no cron. Every Sunday (times in UTC):
+
+- at 04:00, `app:transcodes:prune` deletes the Opus versions that nobody played in the last 30 days, and those of tracks no longer in the library;
+- at 04:30, `cache:pool:prune` deletes expired cache entries, such as spent refresh tokens older than 30 days.
+
+Their output is in the container's logs (`docker compose ... logs php`). Run them by hand at any time with the `docker compose ... exec php bin/console` prefix; `app:transcodes:prune --days=7` keeps only the last week.
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 
-Album covers and artist images downloaded from TheAudioDB and the thumbnails are kept in the `media` volume. Losing it costs nothing but time: thumbnails are made again on request, and the next scan downloads the images again.
+Album covers and artist images downloaded from TheAudioDB, the thumbnails and the Opus versions of tracks are kept in the `media` volume. Losing it costs nothing but time: thumbnails and Opus files are made again on request, and the next scan downloads the images again. Opus files take about 1.9 MB per minute of music, but only for the tracks played in the last 30 days.
 
 A `media` volume created by Echora versions older than this guide belongs to root, and Echora can't write to it (artist thumbnails fail with an error 500). Give it to Echora's user once:
 

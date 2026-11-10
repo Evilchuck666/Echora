@@ -21,7 +21,8 @@ RUN <<-EOF
 	apt-get update
 	apt-get install -y --no-install-recommends \
 		file \
-		git
+		git \
+		opus-tools
 	install-php-extensions \
 		@composer \
 		apcu \
@@ -37,6 +38,22 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 
 ENV PHP_INI_SCAN_DIR=":$PHP_INI_DIR/app.conf.d"
 
+# Supercronic, a cron for containers: runs as any user, passes the environment on to the jobs and logs to stdout.
+# Started by docker-entrypoint next to FrankenPHP, it runs the jobs of frankenphp/crontab.
+# https://github.com/aptible/supercronic/releases (checksums: sha256 of the release binaries)
+ARG SUPERCRONIC_VERSION=v0.2.51
+ARG TARGETARCH
+RUN <<-EOF
+	case "$TARGETARCH" in
+		amd64) sha256=cc232108374e8e2b537045f2d5eaa1229f619db314c3ba6a14d38b35dc0aa123 ;;
+		arm64) sha256=4ae22576a78223d8ccdf5f3b3660a5cbb5288416bf0ca96afc4a36d195932b94 ;;
+		*) echo "unsupported architecture: $TARGETARCH"; exit 1 ;;
+	esac
+	curl -fsSL -o /usr/local/bin/supercronic "https://github.com/aptible/supercronic/releases/download/$SUPERCRONIC_VERSION/supercronic-linux-$TARGETARCH"
+	echo "$sha256  /usr/local/bin/supercronic" | sha256sum -c -
+	chmod 755 /usr/local/bin/supercronic
+EOF
+
 ###> recipes ###
 ###> doctrine/doctrine-bundle ###
 RUN install-php-extensions pdo_pgsql
@@ -46,6 +63,8 @@ RUN install-php-extensions pdo_pgsql
 COPY --link frankenphp/conf.d/10-app.ini $PHP_INI_DIR/app.conf.d/
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
+COPY --link frankenphp/crontab /etc/supercronic/crontab
+RUN supercronic -test /etc/supercronic/crontab
 
 ENTRYPOINT ["docker-entrypoint"]
 
@@ -127,7 +146,7 @@ RUN <<-'EOF'
 	apt-get update
 	apt-get install -y --no-install-recommends libtree
 	mkdir -p /tmp/libs
-	BINARIES=(frankenphp php file)
+	BINARIES=(frankenphp php file opusenc)
 	for target in $(printf '%s\n' "${BINARIES[@]}" | xargs -I{} which {}) \
 		$(find "$(php -r 'echo ini_get("extension_dir");')" -maxdepth 2 -name "*.so"); do
 		libtree -pv "$target" 2>/dev/null | grep -oP '(?:── )\K/\S+(?= \[)' | while IFS= read -r lib; do
@@ -174,6 +193,12 @@ COPY --from=frankenphp_prod_builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/
 COPY --from=frankenphp_prod_builder /etc/ssl/openssl.cnf /etc/ssl/openssl.cnf
 COPY --from=frankenphp_prod_builder /usr/bin/file /usr/bin/file
 COPY --from=frankenphp_prod_builder /usr/lib/file/magic.mgc /usr/lib/file/magic.mgc
+
+# opusenc converts FLAC tracks to Opus (App\Library\OpusTranscoder); its libraries are in /tmp/libs.
+COPY --from=frankenphp_prod_builder /usr/bin/opusenc /usr/bin/opusenc
+# Supercronic and the scheduled jobs (frankenphp/crontab), started by docker-entrypoint.
+COPY --from=frankenphp_prod_builder /usr/local/bin/supercronic /usr/local/bin/supercronic
+COPY --from=frankenphp_prod_builder /etc/supercronic/crontab /etc/supercronic/crontab
 
 ENV  OPENSSL_CONF=/etc/ssl/openssl.cnf XDG_CONFIG_HOME=/config XDG_DATA_HOME=/data SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 

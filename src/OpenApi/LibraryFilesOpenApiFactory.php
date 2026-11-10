@@ -8,12 +8,13 @@ use ApiPlatform\OpenApi\Model\Parameter;
 use ApiPlatform\OpenApi\Model\PathItem;
 use ApiPlatform\OpenApi\Model\Response;
 use ApiPlatform\OpenApi\OpenApi;
+use App\Library\OpusTranscoder;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
 use Symfony\Component\DependencyInjection\Attribute\AutowireDecorated;
 
 /**
  * Documents the endpoints that serve library files (plain Symfony controllers:
- * TrackStreamController, AlbumCoverController, ArtistCoverController) in the OpenAPI specification, so
+ * TrackStreamController, TrackOpusStreamController, AlbumCoverController, ArtistCoverController) in the OpenAPI specification, so
  * generated clients know about them.
  */
 #[AsDecorator(decorates: 'api_platform.openapi.factory')]
@@ -47,6 +48,28 @@ final readonly class LibraryFilesOpenApiFactory implements OpenApiFactoryInterfa
                 $this->id('Track identifier'),
                 new Parameter('Range', 'header', 'Byte range to return, e.g. "bytes=0-1023"', schema: ['type' => 'string']),
                 ...$this->signature('streamUrl'),
+            ],
+            security: [['JWT' => []], []],
+        )));
+
+        $paths->addPath('/api/tracks/{id}/stream/opus', new PathItem(get: new Operation(
+            operationId: 'stream_track_opus',
+            tags: ['Track'],
+            responses: [
+                '200' => new Response('The whole audio, converted to Opus', $this->binary('audio/ogg')),
+                '206' => new Response('The byte range asked for in the Range header', $this->binary('audio/ogg')),
+                '401' => new Response('Neither a valid JWT nor a valid, unexpired signature'),
+                '404' => new Response('The track does not exist, is not a FLAC file (MP3 tracks are not converted), or its file is missing from the library'),
+                '416' => new Response('The byte range asked for is outside the file'),
+            ],
+            summary: 'Streams the audio of a FLAC track converted to Opus',
+            description: \sprintf('Returns the audio of a FLAC track converted to Opus (Ogg container, %d kbit/s), about a quarter of the size of the original, to save bandwidth. MP3 tracks are not converted: they have no opusStreamUrl. ', OpusTranscoder::BITRATE_KBPS)
+                .'The first request for a track waits for the conversion (a few seconds); the result is kept on the server, so later requests are as fast as the original file. Supports HTTP Range requests. '
+                .'Authenticate with a JWT, or call the opusStreamUrl of the track as is: like streamUrl, it needs no Authorization header.',
+            parameters: [
+                $this->id('Track identifier'),
+                new Parameter('Range', 'header', 'Byte range to return, e.g. "bytes=0-1023"', schema: ['type' => 'string']),
+                ...$this->signature('opusStreamUrl'),
             ],
             security: [['JWT' => []], []],
         )));

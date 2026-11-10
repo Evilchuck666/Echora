@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 /**
- * Fills Track::$streamUrl, Album::$coverUrl and Artist::$coverUrl with freshly signed URLs
+ * Fills Track::$streamUrl and Track::$opusStreamUrl, Album::$coverUrl and Artist::$coverUrl with freshly signed URLs
  * right before they are serialized, including an album embedded in a track.
  */
 final class SignedUrlNormalizer implements NormalizerInterface, NormalizerAwareInterface
@@ -31,6 +31,7 @@ final class SignedUrlNormalizer implements NormalizerInterface, NormalizerAwareI
     {
         if ($data instanceof Track) {
             $data->setStreamUrl($this->signedUrls->stream($data));
+            $data->setOpusStreamUrl($this->signedUrls->opusStream($data));
         } elseif ($data instanceof Album) {
             $data->setCoverUrl($this->signedUrls->cover($data));
         } elseif ($data instanceof Artist) {

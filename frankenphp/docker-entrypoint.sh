@@ -49,4 +49,10 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	echo 'PHP app ready!'
 fi
 
+# Scheduled jobs (frankenphp/crontab), next to the web server only: not for one-off commands
+# (docker compose run php bin/console ...). Its logs go to the container's output.
+if [ "$1" = 'frankenphp' ] && [ -f /etc/supercronic/crontab ]; then
+	supercronic /etc/supercronic/crontab &
+fi
+
 exec docker-php-entrypoint "$@"
