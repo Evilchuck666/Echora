@@ -26,7 +26,7 @@ The backend and the clients are separate projects that talk only through the API
 ## ✨ Features
 
 - **Your music folder is the library**: Echora reads the tags of your FLAC and MP3 files and builds a catalog of artists, albums and tracks. The folder is mounted read-only, so your files are never modified.
-- **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted.
+- **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted. Files you move or rename are recognised by their audio and keep their track.
 - **Covers, artist images and lyrics**: album covers come from the album folder and artist images from the artist folder, or else from [TheAudioDB](https://www.theaudiodb.com); lyrics come from the tags.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
 - **Opus for slow connections**: FLAC tracks can also be streamed converted to Opus (256 kbit/s, about a quarter of the size), converted on the first request and kept on the server.
@@ -107,6 +107,10 @@ Albums without a cover in their folder and artists without an image of their own
 The API serves artist images as thumbnails: square JPEGs of at most 300 pixels a side, made on the first request and kept in `var/media`.
 
 A scan skips the files that didn't change. After updating Echora to a version that reads more tags, read every file again with `app:library:scan --full`.
+
+Moving or renaming files (or whole folders) doesn't lose anything: a scan recognises a file by its audio, whatever its path, name or tags, and keeps its track with the new path and tags, so whatever points to the track stays valid. FLAC files carry a checksum of their audio, written by the encoder; for MP3 files, the scan reads the audio frames, without the tags. A copy is a new track, and so is a file whose audio changed (converted to another format, or replaced by another master). When several missing tracks have exactly the same audio (e.g. silent tracks), the one with the same title is chosen; if that doesn't tell them apart, the file is added as a new track.
+
+Tracks scanned by Echora versions older than this feature aren't recognised yet: run `app:library:scan --full` once, before moving files.
 
 ---
 

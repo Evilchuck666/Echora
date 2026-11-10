@@ -17,6 +17,9 @@ use Symfony\Component\Finder\Finder;
  *
  * New files are added, files whose size or modification time changed are read again,
  * missing files are removed, and albums and artists left without tracks are deleted.
+ * A new file with the same audio as a missing one (TagReader::audioHash()) was moved or
+ * renamed: its track is kept, with the new path and tags, so whatever points to the track
+ * (favorites, playlists) keeps working.
  * Then the cover of every album is looked up again (see AlbumCovers), so a cover added
  * or replaced without touching the audio files is picked up too, and so is the image of
  * every artist (see ArtistImages). Both are downloaded from TheAudioDB when their folder has none.
@@ -68,13 +71,23 @@ final class LibraryScanner
             ->ignoreUnreadableDirs()
             ->sortByName();
 
-        $report = new ScanReport();
+        // Listed first: the tracks whose file is gone have to be known before reading the new files.
         $seen = [];
+        foreach ($files as $file) {
+            $seen[$file->getRelativePathname()] = $file;
+        }
+
+        if ([] === $seen && [] !== $known) {
+            throw new LibraryUnavailable(\sprintf('No audio files found in "%s", but the library has %d tracks. Is the music folder mounted? Nothing was removed.', $root, \count($known)));
+        }
+
+        $report = new ScanReport();
+        $vanished = $this->tracks->findByAudioHashAmongPaths(array_map(strval(...), array_keys(array_diff_key($known, $seen))));
+        $movedFrom = [];
         $pending = 0;
 
-        foreach ($files as $file) {
-            $path = $file->getRelativePathname();
-            $seen[$path] = true;
+        foreach ($seen as $path => $file) {
+            $path = (string) $path;
             $state = $known[$path] ?? null;
 
             if (!$full && null !== $state && $state['size'] === (int) $file->getSize() && $state['modifiedAt'] === (int) $file->getMTime()) {
@@ -89,12 +102,16 @@ final class LibraryScanner
                 continue;
             }
 
-            if (null === $state) {
-                $this->add($path, $metadata);
-                ++$report->added;
-            } else {
+            if (null !== $state) {
                 $this->update($path, $metadata);
                 ++$report->updated;
+            } elseif (null !== $from = $this->claimMovedTrack($vanished, $metadata)) {
+                $this->move($from, $path, $metadata);
+                $movedFrom[$from] = true;
+                ++$report->moved;
+            } else {
+                $this->add($path, $metadata);
+                ++$report->added;
             }
 
             if (++$pending >= self::BATCH_SIZE) {
@@ -105,11 +122,7 @@ final class LibraryScanner
 
         $this->flush();
 
-        if ([] === $seen && [] !== $known) {
-            throw new LibraryUnavailable(\sprintf('No audio files found in "%s", but the library has %d tracks. Is the music folder mounted? Nothing was removed.', $root, \count($known)));
-        }
-
-        $report->removed = $this->tracks->deleteByPaths(array_keys(array_diff_key($known, $seen)));
+        $report->removed = $this->tracks->deleteByPaths(array_map(strval(...), array_keys(array_diff_key($known, $seen, $movedFrom))));
         $this->albums->deleteWithoutTracks();
         $this->artists->deleteWithoutAlbumsOrTracks();
         $this->albumCovers->update($root, $download, $report);
@@ -122,6 +135,53 @@ final class LibraryScanner
     {
         [$album, $artist] = $this->resolveAlbumAndArtist($metadata);
         $this->entityManager->persist(new Track($path, $album, $artist, $metadata));
+    }
+
+    /**
+     * The path of the missing track that a new file is, if its audio says so: the only missing track with the
+     * same audio, or, when several have it (e.g. identical silent tracks), the only one with the same title.
+     * A claimed track is taken out of $vanished, so two new files never get the same track.
+     *
+     * @param array<string, list<array{path: string, title: string}>> $vanished Missing tracks by audio hash
+     */
+    private function claimMovedTrack(array &$vanished, AudioMetadata $metadata): ?string
+    {
+        $hash = $metadata->audioHash;
+        $candidates = null === $hash ? [] : $vanished[$hash] ?? [];
+
+        if (1 !== \count($candidates)) {
+            $candidates = array_filter($candidates, static fn (array $track): bool => 0 === strcasecmp($track['title'], $metadata->title));
+            if (1 !== \count($candidates)) {
+                return null;
+            }
+        }
+
+        \assert(null !== $hash);
+        $index = array_key_first($candidates);
+        $path = $candidates[$index]['path'];
+        $remaining = $vanished[$hash];
+        unset($remaining[$index]);
+        if ([] === $remaining) {
+            unset($vanished[$hash]);
+        } else {
+            $vanished[$hash] = array_values($remaining);
+        }
+
+        return $path;
+    }
+
+    private function move(string $from, string $to, AudioMetadata $metadata): void
+    {
+        $track = $this->tracks->findOneBy(['path' => $from]);
+        if (null === $track) {
+            $this->add($to, $metadata);
+
+            return;
+        }
+
+        [$album, $artist] = $this->resolveAlbumAndArtist($metadata);
+        $track->moveTo($to);
+        $track->update($album, $artist, $metadata);
     }
 
     private function update(string $path, AudioMetadata $metadata): void

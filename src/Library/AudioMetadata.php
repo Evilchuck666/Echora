@@ -22,6 +22,8 @@ final readonly class AudioMetadata
         public string $mimeType,
         public int $fileSize,
         public int $fileModifiedAt,
+        /** Identifies the audio regardless of tags and file name (see TagReader::audioHash()); null when unknown. */
+        public ?string $audioHash = null,
     ) {
     }
 }

@@ -39,6 +39,37 @@ class TrackRepository extends ServiceEntityRepository
     }
 
     /**
+     * The tracks at the given paths that have an audio hash, grouped by it: those whose file is gone, which a
+     * new file with the same audio may turn out to be.
+     *
+     * @param list<string> $paths
+     *
+     * @return array<string, list<array{path: string, title: string}>> Indexed by audio hash
+     */
+    public function findByAudioHashAmongPaths(array $paths): array
+    {
+        $tracks = [];
+
+        foreach (array_chunk($paths, 500) as $chunk) {
+            $rows = $this->createQueryBuilder('t')
+                ->select('t.path', 't.title', 't.audioHash')
+                ->where('t.path IN (:paths)')
+                ->andWhere('t.audioHash IS NOT NULL')
+                ->setParameter('paths', $chunk)
+                ->orderBy('t.path')
+                ->getQuery()
+                ->getScalarResult();
+
+            foreach ($rows as $row) {
+                \assert(\is_array($row) && \is_string($row['path']) && \is_string($row['title']) && \is_string($row['audioHash']));
+                $tracks[$row['audioHash']][] = ['path' => $row['path'], 'title' => $row['title']];
+            }
+        }
+
+        return $tracks;
+    }
+
+    /**
      * @return list<string> Identifiers (RFC 4122) of every track
      */
     public function findAllIds(): array

@@ -102,6 +102,15 @@ class Track
     private int $fileModifiedAt;
 
     /**
+     * Hash of the audio alone, without the tags (TagReader::audioHash()): a file moved or renamed, even with
+     * new tags, keeps its track, so favorites and playlists that point to the track keep working.
+     * Null for tracks scanned before it existed (until app:library:scan --full) or when it can't be computed.
+     * Not exposed: it only serves the scanner.
+     */
+    #[ORM\Column(length: 48, nullable: true)]
+    private ?string $audioHash = null;
+
+    /**
      * Signed URL of the audio, valid for a few hours, usable without an Authorization header
      * (e.g. as the src of an <audio> element). Not stored: filled when the track is serialized.
      */
@@ -144,6 +153,7 @@ class Track
         $this->mimeType = $metadata->mimeType;
         $this->fileSize = $metadata->fileSize;
         $this->fileModifiedAt = $metadata->fileModifiedAt;
+        $this->audioHash = $metadata->audioHash;
     }
 
     public function getId(): Uuid
@@ -154,6 +164,19 @@ class Track
     public function getPath(): string
     {
         return $this->path;
+    }
+
+    /**
+     * The file was moved or renamed in the library: the track, and everything that points to it, stays.
+     */
+    public function moveTo(string $path): void
+    {
+        $this->path = $path;
+    }
+
+    public function getAudioHash(): ?string
+    {
+        return $this->audioHash;
     }
 
     public function getTitle(): string

@@ -39,6 +39,7 @@ final readonly class LibraryScanCommand
 
         $io->definitionList(
             ['Added' => $report->added],
+            ['Moved or renamed' => $report->moved],
             ['Updated' => $report->updated],
             ['Unchanged' => $report->unchanged],
             ['Removed' => $report->removed],

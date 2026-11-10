@@ -8,7 +8,19 @@ use PHPUnit\Framework\TestCase;
 
 final class TagReaderTest extends TestCase
 {
+    use WritesId3Tags;
+
     private const string LIBRARY = __DIR__.'/../Fixtures/music';
+    private const string MP3 = self::LIBRARY.'/Test Artist/2022 - Second Album/01 - MP3 Song.mp3';
+
+    private ?string $copy = null;
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->copy) {
+            @unlink($this->copy);
+        }
+    }
 
     public function testItReadsVorbisCommentsFromFlac(): void
     {
@@ -70,5 +82,49 @@ final class TagReaderTest extends TestCase
         $this->expectException(UnreadableAudioFile::class);
 
         (new TagReader())->read(new \SplFileInfo(self::LIBRARY.'/Test Artist/2020 - First Album/album.nfo'));
+    }
+
+    public function testTheAudioHashOfAFlacFileIsTheMd5StoredByItsEncoder(): void
+    {
+        $metadata = (new TagReader())->read(new \SplFileInfo(self::LIBRARY.'/Test Artist/2020 - First Album/01 - Opening.flac'));
+
+        // The MD5 of the decoded audio in STREAMINFO, also shown by "metaflac --show-md5sum".
+        self::assertSame('flac:e9ded829730eccd2d0273d7cc06be58c', $metadata->audioHash);
+    }
+
+    public function testTheAudioHashOfAnMp3FileIgnoresItsTags(): void
+    {
+        $file = $this->copyOfTheMp3();
+        $before = (new TagReader())->read(new \SplFileInfo($file));
+
+        self::writeId3Tags($file, ['title' => 'Renamed Song', 'artist' => 'Someone Else', 'comment' => str_repeat('A longer tag. ', 100)]);
+        $after = (new TagReader())->read(new \SplFileInfo($file));
+
+        self::assertSame('Renamed Song', $after->title);
+        self::assertNotSame($before->fileSize, $after->fileSize);
+        self::assertNotNull($before->audioHash);
+        self::assertStringStartsWith('mp3:', $before->audioHash);
+        self::assertSame($before->audioHash, $after->audioHash);
+    }
+
+    public function testTheAudioHashOfAnMp3FileChangesWithItsAudio(): void
+    {
+        $file = $this->copyOfTheMp3();
+        $before = (new TagReader())->read(new \SplFileInfo($file));
+
+        $content = (string) file_get_contents($file);
+        $middle = intdiv(\strlen($content), 2);
+        $content[$middle] = \chr(\ord($content[$middle]) ^ 0xFF);
+        file_put_contents($file, $content);
+
+        self::assertNotSame($before->audioHash, (new TagReader())->read(new \SplFileInfo($file))->audioHash);
+    }
+
+    private function copyOfTheMp3(): string
+    {
+        $this->copy = sys_get_temp_dir().'/echora-tags-'.bin2hex(random_bytes(4)).'.mp3';
+        copy(self::MP3, $this->copy);
+
+        return $this->copy;
     }
 }

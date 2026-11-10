@@ -8,6 +8,9 @@ namespace App\Library;
 final class ScanReport
 {
     public int $added = 0;
+
+    /** Files moved or renamed (found again by their audio): their tracks were kept, with the new path. */
+    public int $moved = 0;
     public int $updated = 0;
     public int $unchanged = 0;
     public int $removed = 0;

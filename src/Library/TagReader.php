@@ -62,7 +62,52 @@ final class TagReader
             mimeType: \is_string($mimeType) ? $mimeType : ('flac' === $format ? 'audio/flac' : 'audio/mpeg'),
             fileSize: (int) $file->getSize(),
             fileModifiedAt: (int) $file->getMTime(),
+            audioHash: $this->audioHash($info, $format, $file->getPathname()),
         );
+    }
+
+    /**
+     * Identifies the audio of a file regardless of its tags and name, to recognise a file that was moved or
+     * renamed (LibraryScanner). Changing the tags leaves it unchanged; converting or replacing the audio
+     * (another encoding, another master) changes it.
+     *
+     * FLAC: "flac:" and the MD5 of the decoded audio that the encoder stores in STREAMINFO, read for free
+     * with the header. MP3: "mp3:" and the XXH128 of the audio frames, without the ID3 and APE tags around
+     * them, which means reading the whole file (only new and changed files are read).
+     *
+     * @param array<mixed> $info Result of getID3::analyze()
+     */
+    private function audioHash(array $info, string $format, string $path): ?string
+    {
+        if ('flac' === $format) {
+            // getID3 leaves it out when the encoder wrote zeros (old libOggFLAC).
+            $md5 = $info['md5_data_source'] ?? null;
+
+            return \is_string($md5) && 1 === preg_match('/^[0-9a-f]{32}$/', $md5) ? 'flac:'.$md5 : null;
+        }
+
+        $offset = $info['avdataoffset'] ?? null;
+        $end = $info['avdataend'] ?? null;
+        if (!is_numeric($offset) || !is_numeric($end) || (int) $end <= (int) $offset) {
+            return null;
+        }
+
+        $handle = @fopen($path, 'r');
+        if (false === $handle) {
+            return null;
+        }
+
+        try {
+            $length = (int) $end - (int) $offset;
+            if (0 !== fseek($handle, (int) $offset)) {
+                return null;
+            }
+            $context = hash_init('xxh128');
+
+            return hash_update_stream($context, $handle, $length) === $length ? 'mp3:'.hash_final($context) : null;
+        } finally {
+            fclose($handle);
+        }
     }
 
     /**

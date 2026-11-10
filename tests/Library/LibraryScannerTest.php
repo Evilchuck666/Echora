@@ -13,6 +13,8 @@ use Symfony\Component\Filesystem\Filesystem;
 
 final class LibraryScannerTest extends KernelTestCase
 {
+    use WritesId3Tags;
+
     private const string FIXTURES = __DIR__.'/../Fixtures/music';
 
     private string $library;
@@ -86,6 +88,87 @@ final class LibraryScannerTest extends KernelTestCase
         self::assertNull($this->entityManager()->getRepository(Artist::class)->findOneBy(['name' => 'Various Artists']));
         self::assertNull($this->entityManager()->getRepository(Artist::class)->findOneBy(['name' => 'Guest Artist']));
         self::assertNotNull($this->entityManager()->getRepository(Artist::class)->findOneBy(['name' => 'Test Artist']));
+    }
+
+    public function testAMovedAndRenamedFileKeepsItsTrack(): void
+    {
+        $this->scanner()->scan($this->library);
+        $id = $this->trackId('Opening');
+        $this->move('/Test Artist/2020 - First Album/01 - Opening.flac', '/Elsewhere/Opening (renamed).flac');
+
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame([0, 1, 0, 4], [$report->added, $report->moved, $report->removed, $report->unchanged]);
+        self::assertSame('Elsewhere/Opening (renamed).flac', $this->track($id)?->getPath());
+        self::assertSame(5, $this->entityManager()->getRepository(Track::class)->count());
+    }
+
+    public function testAMovedFileWithNewTagsKeepsItsTrackWithTheNewTags(): void
+    {
+        $this->scanner()->scan($this->library);
+        $id = $this->trackId('MP3 Song');
+        $moved = $this->library.'/Elsewhere/song.mp3';
+        $this->move('/Test Artist/2022 - Second Album/01 - MP3 Song.mp3', '/Elsewhere/song.mp3');
+        self::writeId3Tags($moved, ['title' => 'Renamed Song', 'artist' => 'Test Artist', 'band' => 'Test Artist', 'album' => 'Second Album']);
+
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame([0, 1, 0], [$report->added, $report->moved, $report->removed]);
+        $track = $this->track($id);
+        self::assertNotNull($track);
+        self::assertSame('Renamed Song', $track->getTitle());
+        self::assertSame('Elsewhere/song.mp3', $track->getPath());
+    }
+
+    public function testFilesWithTheSameAudioMovedTogetherAreToldApartByTheirTitle(): void
+    {
+        // Both are one second of silence: same audio, same hash.
+        $this->scanner()->scan($this->library);
+        $opening = $this->trackId('Opening');
+        $second = $this->trackId('Second Song');
+        $this->move('/Test Artist/2020 - First Album', '/Test Artist/First Album (Deluxe)');
+
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame([0, 2, 0], [$report->added, $report->moved, $report->removed]);
+        self::assertSame('Test Artist/First Album (Deluxe)/01 - Opening.flac', $this->track($opening)?->getPath());
+        self::assertSame('Test Artist/First Album (Deluxe)/02 - Second Song.flac', $this->track($second)?->getPath());
+    }
+
+    public function testACopyIsANewTrackAndTheOriginalStays(): void
+    {
+        $this->scanner()->scan($this->library);
+        $id = $this->trackId('Opening');
+        (new Filesystem())->copy($this->library.'/Test Artist/2020 - First Album/01 - Opening.flac', $this->library.'/Elsewhere/Opening.flac');
+
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame([1, 0, 0], [$report->added, $report->moved, $report->removed]);
+        self::assertSame('Test Artist/2020 - First Album/01 - Opening.flac', $this->track($id)?->getPath());
+    }
+
+    public function testATrackScannedWithoutAudioHashIsReplacedWhenItsFileMoves(): void
+    {
+        $this->scanner()->scan($this->library);
+        $this->forgetAudioHashes();
+        $this->move('/Test Artist/2020 - First Album/01 - Opening.flac', '/Elsewhere/Opening.flac');
+
+        $report = $this->scanner()->scan($this->library);
+
+        self::assertSame([1, 0, 1], [$report->added, $report->moved, $report->removed]);
+    }
+
+    public function testAFullScanGivesEveryTrackItsAudioHash(): void
+    {
+        $this->scanner()->scan($this->library);
+        $this->forgetAudioHashes();
+
+        $this->scanner()->scan($this->library, full: true);
+
+        $this->entityManager()->clear();
+        $hashes = array_map(static fn (Track $track): ?string => $track->getAudioHash(), $this->entityManager()->getRepository(Track::class)->findAll());
+        self::assertCount(5, $hashes);
+        self::assertNotContains(null, $hashes);
     }
 
     public function testCoversAreFoundInTheAlbumFolders(): void
@@ -167,6 +250,40 @@ final class LibraryScannerTest extends KernelTestCase
         }
 
         return $paths;
+    }
+
+    /**
+     * Moves a file or folder of the library copy, creating the destination folder.
+     */
+    private function move(string $from, string $to): void
+    {
+        $filesystem = new Filesystem();
+        $filesystem->mkdir(\dirname($this->library.$to));
+        $filesystem->rename($this->library.$from, $this->library.$to);
+    }
+
+    private function trackId(string $title): string
+    {
+        $track = $this->entityManager()->getRepository(Track::class)->findOneBy(['title' => $title]);
+        self::assertNotNull($track);
+
+        return $track->getId()->toRfc4122();
+    }
+
+    private function track(string $id): ?Track
+    {
+        $this->entityManager()->clear();
+
+        return $this->entityManager()->find(Track::class, $id);
+    }
+
+    /**
+     * As if the tracks had been scanned by a version of Echora that didn't compute audio hashes.
+     */
+    private function forgetAudioHashes(): void
+    {
+        $this->entityManager()->createQuery('UPDATE '.Track::class.' t SET t.audioHash = NULL')->execute();
+        $this->entityManager()->clear();
     }
 
     private function scanner(): LibraryScanner
