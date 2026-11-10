@@ -1,0 +1,23 @@
+framework:
+    messenger:
+        transports:
+            # Opus versions converted ahead of time (App\Message\TranscodeTracks, POST /api/transcodes), in the
+            # messenger_messages table of PostgreSQL: no other service. Consumed by the workers that docker-entrypoint
+            # starts next to FrankenPHP (TRANSCODE_WORKERS of them). PostgreSQL notifies them of new messages.
+            transcodes:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: transcodes
+                # Converting ahead of time only saves waiting: a failure is logged by the handler, never retried.
+                retry_strategy:
+                    max_retries: 0
+
+        routing:
+            App\Message\TranscodeTracks: transcodes
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                # Tests take the messages from the transport and call the handler themselves.
+                transcodes: 'in-memory://'

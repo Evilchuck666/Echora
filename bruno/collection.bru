@@ -44,7 +44,7 @@ docs {
   2. Select the **Local** environment.
   3. Send any request: the collection signs in on its own when it has no valid JWT (see the collection script). **1 Auth / Sign in**, **Refresh** and **Sign out** are there to try those endpoints.
 
-  **3 Library / List albums** and **List tracks** remember the first album (`albumIri`, `coverUrl`) and track (`trackId`, `streamUrl`, and `opusTrackId`, `opusStreamUrl` for the first FLAC track) they return, for the requests that come after them. In the VS Code extension, variables don't travel between request tabs: run the collection with the Runner to chain them.
+  **3 Library / List albums** and **List tracks** remember the first album (`albumIri`, `coverUrl`) and track (`trackId`, `streamUrl`, `opusTrackId`, `opusStreamUrl` for the first FLAC track, and `opusTrackIds` for up to 20 of them) they return, for the requests that come after them. In the VS Code extension, variables don't travel between request tabs: run the collection with the Runner to chain them.
 
   Bruno must trust the certificate of `https://localhost`: see the README of the repository.
 }

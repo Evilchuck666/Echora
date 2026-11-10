@@ -1,0 +1,36 @@
+meta {
+  name: Convert to Opus ahead of time
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/transcodes
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "tracks": {{opusTrackIds}}
+  }
+}
+
+tests {
+  test("is accepted at once, with where each FLAC track stands", function () {
+    expect(res.status).to.equal(202);
+    expect(res.body.queued).to.be.an("array");
+    expect(res.body.ready).to.be.an("array");
+    expect(res.body.converting).to.be.an("array");
+  });
+}
+
+docs {
+  Has the server convert to Opus, in the background, the tracks a client is about to play: here the FLAC tracks (up to 20) found by **List tracks** (`opusTrackIds`), in their order, next one first. Answers 202 at once: `queued` will be converted one after the other, `ready` already were, `converting` are being converted right now; MP3 tracks and unknown ids are in none of the lists.
+
+  Each request replaces the previous one of the same account: tracks of the older list that aren't converted yet are dropped. Send `{"tracks": []}` to cancel. Send it again after a few seconds and the queued tracks show up in `ready`. At most 20 tracks (422 beyond), as ids or IRIs (`/api/tracks/{id}`).
+}

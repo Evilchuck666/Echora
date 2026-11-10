@@ -24,11 +24,13 @@ script:post-response {
     bru.setVar("trackId", res.body.member[0].id);
     bru.setVar("streamUrl", res.body.member[0].streamUrl);
     // Only FLAC tracks have an Opus version (MP3 ones have no opusStreamUrl).
-    const flac = res.body.member.find((track) => track.opusStreamUrl);
-    if (flac) {
-      bru.setVar("opusTrackId", flac.id);
-      bru.setVar("opusStreamUrl", flac.opusStreamUrl);
+    const flac = res.body.member.filter((track) => track.opusStreamUrl);
+    if (flac.length > 0) {
+      bru.setVar("opusTrackId", flac[0].id);
+      bru.setVar("opusStreamUrl", flac[0].opusStreamUrl);
     }
+    // A JSON list, written as is into the body of "Convert to Opus ahead of time".
+    bru.setVar("opusTrackIds", JSON.stringify(flac.slice(0, 20).map((track) => track.id)));
   }
 }
 
@@ -45,5 +47,5 @@ tests {
 }
 
 docs {
-  Tracks in the order of the library: album artists by name, their albums by year and title, then disc and track number. Enable `album` to list the tracks of the album found by **List albums**, or `albumArtist` for every track of the albums of the artist found by **List artists** (`artist` filters by track artist instead, so it also finds their appearances on other artists' albums). Remembers the first track (`trackId`, `streamUrl`) for **Get track** and **4 Media**, and the first FLAC track (`opusTrackId`, `opusStreamUrl`) for the Opus requests.
+  Tracks in the order of the library: album artists by name, their albums by year and title, then disc and track number. Enable `album` to list the tracks of the album found by **List albums**, or `albumArtist` for every track of the albums of the artist found by **List artists** (`artist` filters by track artist instead, so it also finds their appearances on other artists' albums). Remembers the first track (`trackId`, `streamUrl`) for **Get track** and **4 Media**, the first FLAC track (`opusTrackId`, `opusStreamUrl`) for the Opus requests, and the ids of up to 20 FLAC tracks (`opusTrackIds`) for **Convert to Opus ahead of time**.
 }

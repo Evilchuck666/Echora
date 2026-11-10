@@ -29,7 +29,7 @@ The backend and the clients are separate projects that talk only through the API
 - **Incremental scans**: rescanning only reads new or changed files, removes the ones you deleted, and refuses to empty the library if the music folder isn't mounted. Files you move or rename are recognised by their audio and keep their track.
 - **Covers, artist images and lyrics**: album covers come from the album folder and artist images from the artist folder, or else from [TheAudioDB](https://www.theaudiodb.com); lyrics come from the tags.
 - **Streaming with Range support**: tracks are served as they are, and clients can seek and start playing before the whole file has downloaded.
-- **Opus for slow connections**: FLAC tracks can also be streamed converted to Opus (256 kbit/s, about a quarter of the size), converted on the first request and kept on the server.
+- **Opus for slow connections**: FLAC tracks can also be streamed converted to Opus (256 kbit/s, about a quarter of the size), converted on the first request and kept on the server. Clients can have the next tracks of their queue converted ahead of time, in the background, so they start at once.
 - **Browsable API**: artists, albums and tracks with pagination, filters and a search across the whole library that ignores accents, in JSON-LD or plain JSON, documented with OpenAPI so clients can be generated from it.
 - **User accounts**: sign in with a username and password, get a JWT and a refresh token that keeps apps signed in. Audio players get signed, expiring URLs, so an `<audio>` element can play tracks without sending any header.
 
@@ -145,6 +145,8 @@ Every track includes a `streamUrl`: a signed link to its audio, valid for six ho
 
 FLAC tracks also include an `opusStreamUrl`, signed and valid like `streamUrl`: the same audio converted to Opus (Ogg, 256 kbit/s), about a quarter of the size of the FLAC file, for mobile data or slow connections. The first request for a track waits for the conversion (a few seconds for a song); the result is kept in `var/media`, so later requests start at once. MP3 tracks aren't converted (an MP3 would lose quality twice) and have no `opusStreamUrl`: play their `streamUrl`.
 
+To avoid that wait, a client that plays the Opus versions sends the next tracks of its queue to `POST /api/transcodes` (see below): the server converts them in the background, so they are ready when the player asks for them.
+
 Likewise, every album (also when embedded in a track) includes a `coverUrl`, and so does every artist (a thumbnail of its image); it is left out when there is no image. Use it as the `src` of an `<img>`: it stays the same for a day, so browsers cache the image.
 
 ### Endpoints
@@ -162,6 +164,7 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `GET /api/{artists,albums,tracks}/{id}` | One item. A single track also includes its `lyrics`; lists only say `hasLyrics` |
 | `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support. Use the track's `streamUrl` |
 | `GET /api/tracks/{id}/stream/opus` | The audio of a FLAC track converted to Opus, with HTTP Range support. Use the track's `opusStreamUrl` |
+| `POST /api/transcodes` | Converts the next tracks of a queue to Opus in the background (202 at once; see below) |
 | `GET /api/albums/{id}/cover` | The cover image. Use the album's `coverUrl` |
 | `GET /api/artists/{id}/cover` | A thumbnail of the artist's image (JPEG, up to 300×300). Use the artist's `coverUrl` |
 | `PUT /api/{tracks,albums,artists}/{id}/favourite` | Adds the item to your favourites (204; adding it twice is fine) |
@@ -173,6 +176,20 @@ Responses are JSON-LD by default; send `Accept: application/json` for plain JSON
 ### Favourites
 
 Each account keeps its own favourite tracks, albums and artists; no one else sees them. Every track, album and artist the API returns, in lists, single items and search results alike, says whether it is one of yours (`"favourite": true`), so a client can show it without asking again. A favourite goes away with its item (a track whose file was deleted, an album left without tracks); moving or renaming files keeps them, as tracks are recognised by their audio.
+
+### Converting ahead of time
+
+`POST /api/transcodes` with `{"tracks": ["<id or /api/tracks/id>", ...]}`, the next tracks of the queue in the order they will play (at most 20), answers `202 Accepted` at once and converts them to Opus in the background, one after the other, next one first. The answer says where each FLAC track stands:
+
+```json
+{"queued": ["<id>", "<id>"], "ready": ["<id>"], "converting": []}
+```
+
+`queued` will be converted in that order, `ready` already were (their `opusStreamUrl` starts at once), `converting` are being converted right now. MP3 tracks and unknown ids are in none of them. More than 20 tracks, or something that is neither a track id nor its IRI, is a `422`.
+
+Each request replaces the previous one of the same account, from any device: tracks of the older list that aren't converted yet are dropped, so send the whole upcoming list whenever the queue changes, and an empty list to cancel. Tracks asked for this way that are already converted count as played, so `app:transcodes:prune` keeps them.
+
+The conversions run in background workers (Symfony Messenger, with its queue in PostgreSQL) that the `php` container starts next to FrankenPHP, never in the PHP workers that answer requests. `TRANSCODE_WORKERS` (1 by default) sets how many tracks are converted at once: each conversion takes one CPU core for a few seconds; `0` turns converting ahead of time off.
 
 ### Search
 
@@ -239,7 +256,7 @@ The `php` container runs its own scheduled jobs (`frankenphp/crontab`, with [Sup
 - at 04:00, `app:transcodes:prune` deletes the Opus versions that nobody played in the last 30 days, and those of tracks no longer in the library;
 - at 04:30, `cache:pool:prune` deletes expired cache entries, such as spent refresh tokens older than 30 days.
 
-Their output is in the container's logs (`docker compose ... logs php`). Run them by hand at any time with the `docker compose ... exec php bin/console` prefix; `app:transcodes:prune --days=7` keeps only the last week.
+Their output is in the container's logs (`docker compose ... logs php`), and so is that of the workers that convert tracks to Opus ahead of time (`TRANSCODE_WORKERS` in `prod.env`, 1 by default). Run the jobs by hand at any time with the `docker compose ... exec php bin/console` prefix; `app:transcodes:prune --days=7` keeps only the last week.
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 
@@ -267,6 +284,8 @@ On Linux, files created from inside the container belong to root. Give them back
 ```sh
 ./scripts/fix-permissions.sh
 ```
+
+The Opus workers (`messenger:consume transcodes`) are long-running processes: after changing their code (`TranscodeTracksHandler`, `OpusTranscoder`), run `docker compose exec php bin/console messenger:stop-workers`, and they start again with the new code. A change to `frankenphp/docker-entrypoint.sh` or `frankenphp/crontab` needs `docker compose up --build --wait`.
 
 To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
 
@@ -297,7 +316,7 @@ Then run every check the CI runs, or each one on its own:
 
 GitHub Actions (`.github/workflows/ci.yaml`) builds the Docker images and runs the same checks, plus the Doctrine migrations and schema validation, on every push to `main` and on pull requests.
 
-A second job builds the **production image**, with the web client from [echora-web](https://github.com/Evilchuck666/echora-web)'s `main` branch (another branch, tag or commit when started by hand), starts it with the test library, and runs `scripts/smoke-test-prod.sh` against it: the web client at the root of the site, the API, signing in, audio and images sent by Caddy, CORS closed.
+A second job builds the **production image**, with the web client from [echora-web](https://github.com/Evilchuck666/echora-web)'s `main` branch (another branch, tag or commit when started by hand), starts it with the test library, and runs `scripts/smoke-test-prod.sh` against it: the web client at the root of the site, the API, signing in, audio and images sent by Caddy, a track converted to Opus by the background workers, CORS closed.
 
 ---
 

@@ -92,6 +92,27 @@ request "$PHOTO"
 # Made on the first request and written to the media volume: fails if PHP can't write there.
 check "an artist thumbnail (written to the media volume)" '[ -n "$PHOTO" ] && [ "$(status)" = 200 ] && [ "$(header Content-Type)" = image/jpeg ]'
 
+echo "Opus (converted by the background workers)"
+request "${AUTH[@]}" "$BASE/api/tracks"
+FLAC=$(json 'next((t["id"] for t in data if t.get("opusStreamUrl")), "")')
+OPUS=$(json 'next((t["opusStreamUrl"] for t in data if t.get("opusStreamUrl")), "")')
+if [ -z "$FLAC" ]; then
+    printf '  skip  %s\n' "no FLAC track on the first page of tracks"
+else
+    transcode() { request "${AUTH[@]}" -X POST -H "Content-Type: application/json" -d "{\"tracks\": [\"$FLAC\"]}" "$BASE/api/transcodes"; }
+    transcode
+    check "converting ahead of time is accepted at once" '[ "$(status)" = 202 ]'
+    # Asking again tells where the track stands; ready at once if an earlier run (or a player) converted it.
+    for _ in $(seq 1 30); do
+        [ "$(json "\"$FLAC\" in data[\"ready\"]")" = True ] && break
+        sleep 2
+        transcode
+    done
+    check "a background worker converted it (written to the media volume)" '[ "$(json "\"$FLAC\" in data[\"ready\"]")" = True ]'
+    request -H "Range: bytes=0-99" "$OPUS"
+    check "a range of the Opus version, without the JWT" '[ "$(status)" = 206 ] && [ "$(wc -c < "$WORK/body")" -eq 100 ] && [[ "$(header Content-Type)" == audio/ogg* ]]'
+fi
+
 echo "Session"
 request -X POST -H "Content-Type: application/json" -d "{\"refresh_token\": \"$REFRESH\"}" "$BASE/api/token/refresh"
 check "the refresh token gives a new pair" '[ "$(status)" = 200 ] && [ -n "$(json "data[\"refresh_token\"]")" ]'

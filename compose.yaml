@@ -12,6 +12,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-16}&charset=${POSTGRES_CHARSET:-utf8}
       # PostgreSQL advisory locks, shared by every PHP process and replica (see config/packages/lock.yaml).
       LOCK_DSN: postgresql+advisory://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-16}&charset=${POSTGRES_CHARSET:-utf8}
+      # How many tracks are converted to Opus ahead of time at once (POST /api/transcodes): one opusenc, and one CPU
+      # core, each. 0 turns it off. See docker-entrypoint.sh.
+      TRANSCODE_WORKERS: ${TRANSCODE_WORKERS:-1}
       # Run "composer require symfony/mercure-bundle" to install and configure the Mercure integration
       MERCURE_URL: ${CADDY_MERCURE_URL:-http://php/.well-known/mercure}
       MERCURE_PUBLIC_URL: ${CADDY_MERCURE_PUBLIC_URL:-https://${SERVER_NAME:-localhost}:${HTTPS_PORT:-443}/.well-known/mercure}

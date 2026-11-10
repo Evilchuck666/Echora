@@ -2,6 +2,7 @@
 
 namespace App\Tests\Library;
 
+use App\Library\OpusStatus;
 use App\Library\OpusTranscoder;
 use App\Library\TranscodingFailed;
 use PHPUnit\Framework\TestCase;
@@ -17,12 +18,14 @@ final class OpusTranscoderTest extends TestCase
 
     private string $folder;
     private OpusTranscoder $transcoder;
+    private LockFactory $locks;
 
     protected function setUp(): void
     {
         $this->folder = sys_get_temp_dir().'/echora-transcodes-'.bin2hex(random_bytes(4));
         mkdir($this->folder);
-        $this->transcoder = new OpusTranscoder($this->folder.'/media', new LockFactory(new InMemoryStore()));
+        $this->locks = new LockFactory(new InMemoryStore());
+        $this->transcoder = new OpusTranscoder($this->folder.'/media', $this->locks);
     }
 
     protected function tearDown(): void
@@ -79,6 +82,36 @@ final class OpusTranscoderTest extends TestCase
         clearstatcache();
         self::assertSame(1_000_000, filemtime($opus), 'Caddy derives the ETag from it: players resuming a download would start over.');
         self::assertEqualsWithDelta(time(), fileatime($opus), 5);
+    }
+
+    public function testCheckTellsWhetherTheOpusVersionIsMissingBeingMadeOrReady(): void
+    {
+        $source = $this->source();
+        self::assertSame(OpusStatus::Missing, $this->transcoder->check($source, self::TRACK_ID));
+
+        $lock = $this->locks->createLock('opus-transcode-'.self::TRACK_ID);
+        $lock->acquire();
+        self::assertSame(OpusStatus::Converting, $this->transcoder->check($source, self::TRACK_ID));
+        $lock->release();
+
+        $opus = $this->transcoder->transcode($source, self::TRACK_ID);
+        touch($opus, (int) filemtime($opus), time() - 40 * 86400);
+        self::assertSame(OpusStatus::Ready, $this->transcoder->check($source, self::TRACK_ID));
+        clearstatcache(true, $opus);
+        self::assertGreaterThan(time() - 60, fileatime($opus), 'A version asked for ahead of time counts as used.');
+    }
+
+    public function testConvertingAheadOfTimeNeverWaitsAndNeverConvertsTwice(): void
+    {
+        $source = $this->source();
+        $lock = $this->locks->createLock('opus-transcode-'.self::TRACK_ID);
+        $lock->acquire();
+        self::assertFalse($this->transcoder->transcodeUnlessBusy($source, self::TRACK_ID), 'Another process is converting it.');
+        $lock->release();
+
+        self::assertTrue($this->transcoder->transcodeUnlessBusy($source, self::TRACK_ID));
+        self::assertSame(OpusStatus::Ready, $this->transcoder->check($source, self::TRACK_ID));
+        self::assertFalse($this->transcoder->transcodeUnlessBusy($source, self::TRACK_ID), 'Already converted.');
     }
 
     public function testAFileThatIsNotFlacCannotBeConvertedAndLeavesNothingBehind(): void

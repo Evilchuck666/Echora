@@ -21,6 +21,7 @@ deleted.
 | [0008](0008-tracks-in-library-order.md) | Tracks in the order of the library, and the `albumArtist` filter | 2026-11-10 | Accepted |
 | [0009](0009-favourites-and-playlists.md) | Favourites of tracks, albums and artists, and playlists, per user | 2026-11-10 | Accepted |
 | [0010](0010-tracks-keep-their-identity-when-files-move.md) | Tracks keep their identity when files are moved or renamed (audio hash) | 2026-11-10 | Accepted |
+| [0011](0011-opus-conversion-ahead-of-time.md) | Converting to Opus ahead of time, for the tracks a client is about to play, in background workers | 2026-11-10 | Accepted |
 
 Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; its
 README section and CLAUDE.md describe it.

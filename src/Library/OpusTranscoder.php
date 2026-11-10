@@ -5,6 +5,7 @@ namespace App\Library;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\SharedLockInterface;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
@@ -16,8 +17,11 @@ use Symfony\Component\Process\Process;
  * size and modification time and of the bitrate, so a changed FLAC file is converted again, and its
  * older version is removed then.
  *
- * The access time of an Opus file is the last time it was asked for: prune() removes the ones nobody
- * played for a while. The modification time is left alone, as Caddy derives the ETag from it and players
+ * Clients may also have tracks converted ahead of time (transcodeUnlessBusy(), from App\Message\TranscodeTracks), so
+ * that the first request doesn't wait for the conversion.
+ *
+ * The access time of an Opus file is the last time it was asked for (or made, or asked for ahead of time): prune()
+ * removes the ones nobody played for a while. The modification time is left alone, as Caddy derives the ETag from it and players
  * send it back (If-Range) while they fetch the rest of the file.
  */
 final readonly class OpusTranscoder
@@ -59,12 +63,11 @@ final readonly class OpusTranscoder
      */
     public function transcode(string $source, string $trackId): string
     {
-        $stat = @stat($source) ?: throw new TranscodingFailed(\sprintf('"%s" cannot be read.', $source));
-        $file = \sprintf('%s/track-%s-%s.opus', $this->directory, $trackId, substr(hash('xxh128', $source."\0".$stat['size']."\0".$stat['mtime']."\0".self::BITRATE_KBPS), 0, 16));
+        $file = $this->file($source, $trackId);
 
         if (!is_file($file)) {
             // A player often sends several requests at once: one converts the track, the others wait for its file.
-            $lock = $this->locks->createLock('opus-transcode-'.$trackId, self::TIMEOUT_SECONDS + 60);
+            $lock = $this->lock($trackId);
             $lock->acquire(true);
             try {
                 if (!is_file($file)) {
@@ -79,6 +82,71 @@ final readonly class OpusTranscoder
         $this->markAsUsed($file);
 
         return $file;
+    }
+
+    /**
+     * Converts a track ahead of time, before anyone asks for it, unless its Opus version is ready or another process
+     * is making it: never waits for a lock.
+     *
+     * @param string $source  Absolute path of the FLAC file
+     * @param string $trackId Identifier of the track (RFC 4122)
+     *
+     * @return bool Whether the track was converted now
+     *
+     * @throws TranscodingFailed
+     */
+    public function transcodeUnlessBusy(string $source, string $trackId): bool
+    {
+        $file = $this->file($source, $trackId);
+        if (is_file($file)) {
+            $this->markAsUsed($file);
+
+            return false;
+        }
+
+        $lock = $this->lock($trackId);
+        if (!$lock->acquire(false)) {
+            return false;
+        }
+        try {
+            if (is_file($file)) {
+                return false;
+            }
+            // Its access time is now: prune() keeps it as long as one that was just played.
+            $this->encode($source, $file);
+            $this->removeOlderVersions($trackId, $file);
+        } finally {
+            $lock->release();
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether the Opus version of a track is ready, being made, or neither. A ready one counts as used now: it was
+     * asked for because it is about to be played, so prune() keeps it.
+     *
+     * @param string $source  Absolute path of the FLAC file
+     * @param string $trackId Identifier of the track (RFC 4122)
+     *
+     * @throws TranscodingFailed if the source cannot be read
+     */
+    public function check(string $source, string $trackId): OpusStatus
+    {
+        $file = $this->file($source, $trackId);
+        if (is_file($file)) {
+            $this->markAsUsed($file);
+
+            return OpusStatus::Ready;
+        }
+
+        $lock = $this->lock($trackId);
+        if (!$lock->acquire(false)) {
+            return OpusStatus::Converting;
+        }
+        $lock->release();
+
+        return OpusStatus::Missing;
     }
 
     /**
@@ -109,6 +177,24 @@ final readonly class OpusTranscoder
         }
 
         return $removed;
+    }
+
+    /**
+     * @throws TranscodingFailed if the source cannot be read
+     */
+    private function file(string $source, string $trackId): string
+    {
+        $stat = @stat($source) ?: throw new TranscodingFailed(\sprintf('"%s" cannot be read.', $source));
+
+        return \sprintf('%s/track-%s-%s.opus', $this->directory, $trackId, substr(hash('xxh128', $source."\0".$stat['size']."\0".$stat['mtime']."\0".self::BITRATE_KBPS), 0, 16));
+    }
+
+    /**
+     * One conversion of a track at a time, among every PHP process (PostgreSQL advisory locks, see LOCK_DSN).
+     */
+    private function lock(string $trackId): SharedLockInterface
+    {
+        return $this->locks->createLock('opus-transcode-'.$trackId, self::TIMEOUT_SECONDS + 60);
     }
 
     /**

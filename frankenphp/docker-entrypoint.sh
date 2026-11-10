@@ -55,4 +55,27 @@ if [ "$1" = 'frankenphp' ] && [ -f /etc/supercronic/crontab ]; then
 	supercronic /etc/supercronic/crontab &
 fi
 
+# Background workers (Symfony Messenger, transport "transcodes"): convert to Opus the tracks that clients are about to
+# play (POST /api/transcodes), outside the PHP workers that serve requests. One opusenc per worker at most:
+# TRANSCODE_WORKERS sets how many run at once (0: none). Each one restarts every hour, or after
+# bin/console messenger:stop-workers (e.g. to load changed code in development).
+if [ "$1" = 'frankenphp' ]; then
+	case "${TRANSCODE_WORKERS:-1}" in
+		'' | *[!0-9]*)
+			echo "TRANSCODE_WORKERS must be a whole number, not \"$TRANSCODE_WORKERS\": no transcode workers started." >&2
+			;;
+		*)
+			worker=0
+			while [ "$worker" -lt "${TRANSCODE_WORKERS:-1}" ]; do
+				(
+					while true; do
+						php bin/console messenger:consume transcodes --time-limit=3600 --memory-limit=256M --no-interaction || sleep 5
+					done
+				) &
+				worker=$((worker + 1))
+			done
+			;;
+	esac
+fi
+
 exec docker-php-entrypoint "$@"

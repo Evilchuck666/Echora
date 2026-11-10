@@ -7,6 +7,10 @@ doctrine:
         #server_version: '16'
 
         profiling_collect_backtrace: '%kernel.debug%'
+        # The Messenger queue (messenger_messages, created by a migration) belongs to the Doctrine transport, which
+        # declares it itself. In tests the transport is in memory: without this filter, schema:validate would want
+        # the table dropped.
+        schema_filter: '~^(?!messenger_messages$)~'
     orm:
         validate_xml_mapping: true
         naming_strategy: doctrine.orm.naming_strategy.underscore
