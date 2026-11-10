@@ -179,15 +179,15 @@ Each account keeps its own favourite tracks, albums and artists; no one else see
 
 ### Converting ahead of time
 
-`POST /api/transcodes` with `{"tracks": ["<id or /api/tracks/id>", ...]}`, the next tracks of the queue in the order they will play (at most 20), answers `202 Accepted` at once and converts them to Opus in the background, one after the other, next one first. The answer says where each FLAC track stands:
+`POST /api/transcodes` with `{"device": "<uuid>", "tracks": ["<id or /api/tracks/id>", ...]}`, the next tracks of the device's queue in the order they will play (at most 20), answers `202 Accepted` at once and converts them to Opus in the background, one after the other, next one first. `device` is a UUID that the client generates once (e.g. `crypto.randomUUID()`) and keeps. The answer says where each FLAC track stands:
 
 ```json
 {"queued": ["<id>", "<id>"], "ready": ["<id>"], "converting": []}
 ```
 
-`queued` will be converted in that order, `ready` already were (their `opusStreamUrl` starts at once), `converting` are being converted right now. MP3 tracks and unknown ids are in none of them. More than 20 tracks, or something that is neither a track id nor its IRI, is a `422`.
+`queued` will be converted in that order, `ready` already were (their `opusStreamUrl` starts at once), `converting` are being converted right now. MP3 tracks and unknown ids are in none of them. A missing `device` or one that isn't a UUID, more than 20 tracks, or something that is neither a track id nor its IRI, is a `422`.
 
-Each request replaces the previous one of the same account, from any device: tracks of the older list that aren't converted yet are dropped, so send the whole upcoming list whenever the queue changes, and an empty list to cancel. Tracks asked for this way that are already converted count as played, so `app:transcodes:prune` keeps them.
+Each device of an account has its own list, so a phone and a tablet with the same account don't replace each other's. A request replaces the previous one of the same device: tracks of the older list that aren't converted yet are dropped, so send the whole upcoming list whenever the queue changes, and an empty list to cancel. An account keeps the lists of its 5 most recent devices; those of older ones are dropped. The lists of every device and account take turns, one track each, so no one waits for someone else's whole list. Tracks asked for this way that are already converted count as played, so `app:transcodes:prune` keeps them.
 
 The conversions run in background workers (Symfony Messenger, with its queue in PostgreSQL) that the `php` container starts next to FrankenPHP, never in the PHP workers that answer requests. `TRANSCODE_WORKERS` (1 by default) sets how many tracks are converted at once: each conversion takes one CPU core for a few seconds; `0` turns converting ahead of time off.
 
@@ -285,7 +285,7 @@ On Linux, files created from inside the container belong to root. Give them back
 ./scripts/fix-permissions.sh
 ```
 
-The Opus workers (`messenger:consume transcodes`) are long-running processes: after changing their code (`TranscodeTracksHandler`, `OpusTranscoder`), run `docker compose exec php bin/console messenger:stop-workers`, and they start again with the new code. A change to `frankenphp/docker-entrypoint.sh` or `frankenphp/crontab` needs `docker compose up --build --wait`.
+The Opus workers (`messenger:consume transcodes`) are long-running processes: after changing their code (`TranscodeTracksHandler`, `TranscodeQueue`, `OpusTranscoder`, the `TranscodeTracks` message), run `docker compose restart php` so they start again with it. `messenger:stop-workers` isn't enough: an idle worker only sees it when the next message wakes it up, and handles that message with the old code first. A change to `frankenphp/docker-entrypoint.sh` or `frankenphp/crontab` needs `docker compose up --build --wait`.
 
 To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
 

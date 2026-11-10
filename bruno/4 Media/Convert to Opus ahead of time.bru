@@ -16,6 +16,7 @@ headers {
 
 body:json {
   {
+    "device": "{{deviceId}}",
     "tracks": {{opusTrackIds}}
   }
 }
@@ -30,7 +31,7 @@ tests {
 }
 
 docs {
-  Has the server convert to Opus, in the background, the tracks a client is about to play: here the FLAC tracks (up to 20) found by **List tracks** (`opusTrackIds`), in their order, next one first. Answers 202 at once: `queued` will be converted one after the other, `ready` already were, `converting` are being converted right now; MP3 tracks and unknown ids are in none of the lists.
+  Has the server convert to Opus, in the background, the tracks a device is about to play: here the FLAC tracks (up to 20) found by **List tracks** (`opusTrackIds`), in their order, next one first. `device` (`deviceId` in the environment) is a UUID that a client generates once and keeps. Answers 202 at once: `queued` will be converted one after the other, `ready` already were, `converting` are being converted right now; MP3 tracks and unknown ids are in none of the lists.
 
-  Each request replaces the previous one of the same account: tracks of the older list that aren't converted yet are dropped. Send `{"tracks": []}` to cancel. Send it again after a few seconds and the queued tracks show up in `ready`. At most 20 tracks (422 beyond), as ids or IRIs (`/api/tracks/{id}`).
+  Each device of an account has its own list, and a request replaces the previous one of the same device only: tracks of the older list that aren't converted yet are dropped. Send an empty `tracks` list to cancel. An account keeps the lists of its 5 most recent devices. Send it again after a few seconds and the queued tracks show up in `ready`. At most 20 tracks (422 beyond), as ids or IRIs (`/api/tracks/{id}`); without a `device`, or with one that isn't a UUID, 422.
 }

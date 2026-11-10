@@ -13,12 +13,14 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Converts the tracks of a TranscodeTracks message one after the other, in their order, in the background workers
- * (messenger:consume transcodes, started by docker-entrypoint): never in a worker that serves HTTP requests. As many
- * conversions run at once as there are workers (TRANSCODE_WORKERS).
+ * Converts the next track of a TranscodeTracks message in the background workers (messenger:consume transcodes,
+ * started by docker-entrypoint): never in a worker that serves HTTP requests. As many conversions run at once as
+ * there are workers (TRANSCODE_WORKERS).
  *
- * Stops when the user asked for a newer list. Skips tracks converted or being converted in the meantime, and tracks
- * that are gone. A failure is logged and the next track is converted: nothing is retried.
+ * One conversion per message: the rest of the list goes back to the end of the queue, so the lists of every device
+ * (and every user) take turns, each in its own order. Tracks converted or being converted in the meantime, and tracks
+ * that are gone, are skipped without using the turn. A list is dropped when its device sent a newer one. A failure is
+ * logged and the list goes on: nothing is retried.
  */
 #[AsMessageHandler]
 final readonly class TranscodeTracksHandler
@@ -32,15 +34,15 @@ final readonly class TranscodeTracksHandler
     }
 
     /**
-     * @return list<string> Identifiers of the tracks converted, in the order they were
+     * @return string|null Identifier of the track converted, if one was
      */
-    public function __invoke(TranscodeTracks $message): array
+    public function __invoke(TranscodeTracks $message): ?string
     {
-        $converted = [];
+        $trackIds = $message->trackIds;
 
-        foreach ($message->trackIds as $id) {
+        while (null !== $id = array_shift($trackIds)) {
             if (!$this->queue->isLatest($message)) {
-                break;
+                return null;
             }
 
             $track = $this->tracks->find(Uuid::fromString($id));
@@ -50,14 +52,22 @@ final readonly class TranscodeTracksHandler
             }
 
             try {
-                if ($this->transcoder->transcodeUnlessBusy($source, $id)) {
-                    $converted[] = $id;
+                if (!$this->transcoder->transcodeUnlessBusy($source, $id)) {
+                    continue; // Ready or being converted: nothing was done, the turn goes on.
                 }
+                $converted = $id;
             } catch (TranscodingFailed $e) {
                 $this->logger->warning('Track {id} could not be converted to Opus ahead of time: {reason}', ['id' => $id, 'reason' => $e->getMessage(), 'exception' => $e]);
+                $converted = null;
             }
+
+            if ([] !== $trackIds && $this->queue->isLatest($message)) {
+                $this->queue->requeue($message, $trackIds);
+            }
+
+            return $converted;
         }
 
-        return $converted;
+        return null;
     }
 }

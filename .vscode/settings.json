@@ -10,6 +10,10 @@
   // Must match the PHP version of the Docker image (Dockerfile: dunglas/frankenphp:1-php8.5).
   "intelephense.environment.phpVersion": "8.5.0",
 
+  // Symfony Language Tools boots the kernel for runtime metadata: run it in the php container (needs the stack up).
+  "symfonyLsp.phpCommand": ["docker", "compose", "exec", "-T", "php", "php"],
+  "symfonyLsp.containerProjectRoot": "/app",
+
   // Intelephense defaults plus Symfony's var/ (cache holds generated copies of classes and would duplicate symbols).
   "intelephense.files.exclude": [
     "**/.git/**",

@@ -57,8 +57,9 @@ fi
 
 # Background workers (Symfony Messenger, transport "transcodes"): convert to Opus the tracks that clients are about to
 # play (POST /api/transcodes), outside the PHP workers that serve requests. One opusenc per worker at most:
-# TRANSCODE_WORKERS sets how many run at once (0: none). Each one restarts every hour, or after
-# bin/console messenger:stop-workers (e.g. to load changed code in development).
+# TRANSCODE_WORKERS sets how many run at once (0: none). Each one restarts every hour. To load changed code in
+# development, restart the container: messenger:stop-workers only reaches a worker when it wakes up, and it handles
+# that message with the old code first.
 if [ "$1" = 'frankenphp' ]; then
 	case "${TRANSCODE_WORKERS:-1}" in
 		'' | *[!0-9]*)

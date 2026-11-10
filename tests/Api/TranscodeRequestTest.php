@@ -8,6 +8,7 @@ use App\Entity\Track;
 use App\Library\LibraryFiles;
 use App\Library\LibraryScanner;
 use App\Library\OpusTranscoder;
+use App\Library\TranscodeQueue;
 use App\Message\TranscodeTracks;
 use App\MessageHandler\TranscodeTracksHandler;
 use App\Repository\TrackRepository;
@@ -26,6 +27,9 @@ final class TranscodeRequestTest extends ApiTestCase
     use CreatesUsers;
 
     protected static ?bool $alwaysBootKernel = true;
+
+    private const string PHONE = '9a7f3c52-1d4e-4b8a-9c6f-0e2d5b7a1c34';
+    private const string TABLET = '5e1b8d27-6c3a-4f90-8b2e-7d4c1a9f0e65';
 
     private Client $client;
     private string $directory;
@@ -56,7 +60,7 @@ final class TranscodeRequestTest extends ApiTestCase
         self::assertSame(['queued' => [$second, $guest, $opening], 'ready' => [], 'converting' => []], $response);
         self::assertSame([], glob($this->directory.'/*.opus') ?: [], 'Nothing was converted before the response.');
 
-        self::assertSame([[$second, $guest, $opening]], $this->handlePendingMessages(), 'Converted one after the other, next one first.');
+        self::assertSame([$second, $guest, $opening], $this->handlePendingMessages(), 'Converted one after the other, next one first.');
         foreach ([$second, $guest, $opening] as $id) {
             self::assertCount(1, glob($this->directory."/track-$id-*.opus") ?: []);
         }
@@ -69,7 +73,7 @@ final class TranscodeRequestTest extends ApiTestCase
         $response = $this->transcode([$this->id('MP3 Song'), '01a1c051-0000-7000-8000-000000000000', $opening, '/api/tracks/'.strtoupper($opening)]);
 
         self::assertSame(['queued' => [$opening], 'ready' => [], 'converting' => []], $response);
-        self::assertSame([[$opening]], $this->handlePendingMessages());
+        self::assertSame([$opening], $this->handlePendingMessages());
     }
 
     public function testTracksAlreadyConvertedAreLeftOutAndKeptByPrune(): void
@@ -109,11 +113,11 @@ final class TranscodeRequestTest extends ApiTestCase
         $lock = self::getContainer()->get(LockFactory::class)->createLock('opus-transcode-'.$opening);
         self::assertTrue($lock->acquire());
 
-        self::assertSame([[$second]], $this->handlePendingMessages(), 'Never waits for another conversion.');
+        self::assertSame([$second], $this->handlePendingMessages(), 'Never waits for another conversion.');
         $lock->release();
     }
 
-    public function testANewListReplacesTheTracksOfThePreviousOneThatAreNotConvertedYet(): void
+    public function testANewListReplacesTheTracksOfThePreviousOneOfTheSameDeviceThatAreNotConvertedYet(): void
     {
         $opening = $this->id('Opening');
         $second = $this->id('Second Song');
@@ -121,11 +125,11 @@ final class TranscodeRequestTest extends ApiTestCase
         $this->transcode([$opening]);
         $this->transcode([$second]);
 
-        self::assertSame([[], [$second]], $this->handlePendingMessages(), 'The older list is dropped.');
+        self::assertSame([$second], $this->handlePendingMessages(), 'The older list is dropped.');
         self::assertSame([], glob($this->directory."/track-$opening-*.opus") ?: []);
     }
 
-    public function testAnEmptyListCancelsThePreviousOne(): void
+    public function testAnEmptyListCancelsThePreviousOneOfTheSameDevice(): void
     {
         $this->transcode([$this->id('Opening')]);
 
@@ -133,18 +137,32 @@ final class TranscodeRequestTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(202);
         self::assertSame(['queued' => [], 'ready' => [], 'converting' => []], $response);
-        self::assertSame([[]], $this->handlePendingMessages(), 'Nothing new to do, and the older list is dropped.');
+        self::assertSame([], $this->handlePendingMessages(), 'Nothing new to do, and the older list is dropped.');
     }
 
-    public function testTracksConvertedAheadOfTimeAreKeptByPruneUntilTheyArePlayed(): void
+    public function testEachDeviceOfAnAccountKeepsItsOwnListAndTheListsTakeTurns(): void
     {
         $opening = $this->id('Opening');
-        $this->transcode([$opening]);
-        $this->handlePendingMessages();
+        $second = $this->id('Second Song');
+        $guest = $this->id('Guest Track');
 
-        $this->prune();
+        $this->transcode([$opening, $second], self::PHONE);
+        $this->transcode([$guest], self::TABLET);
 
-        self::assertCount(1, glob($this->directory."/track-$opening-*.opus") ?: []);
+        self::assertSame([$opening, $guest, $second], $this->handlePendingMessages(), 'The tablet waits for one track of the phone, not for its whole list.');
+    }
+
+    public function testTheListsOfTheDevicesBeyondTheFiveMostRecentOfTheAccountAreDropped(): void
+    {
+        $this->transcode([$this->id('Opening')], self::PHONE);
+        foreach (range(1, TranscodeQueue::MAX_DEVICES) as $i) {
+            $this->transcode([], \sprintf('0d0d0d0d-0000-4000-8000-%012d', $i));
+        }
+        self::assertSame([], $this->handlePendingMessages(), 'The phone is no longer one of the five most recent devices.');
+
+        $second = $this->id('Second Song');
+        $this->transcode([$second], self::PHONE);
+        self::assertSame([$second], $this->handlePendingMessages(), 'A new list makes it one of them again.');
     }
 
     public function testAtMostTwentyTracksPerRequest(): void
@@ -165,20 +183,42 @@ final class TranscodeRequestTest extends ApiTestCase
         $this->transcode(['/api/albums/01a1c051-0000-7000-8000-000000000000']);
         self::assertResponseStatusCodeSame(422);
 
-        $this->client->request('POST', '/api/transcodes', ['auth_bearer' => $this->token, 'json' => ['songs' => []]]);
+        $this->client->request('POST', '/api/transcodes', ['auth_bearer' => $this->token, 'json' => ['device' => self::PHONE, 'songs' => []]]);
         self::assertResponseStatusCodeSame(422);
 
         $this->client->request('POST', '/api/transcodes', ['auth_bearer' => $this->token, 'headers' => ['Content-Type' => 'application/json'], 'body' => '{"tracks":']);
         self::assertResponseStatusCodeSame(400);
     }
 
+    public function testTheDeviceIsRequiredAndMustBeAUuid(): void
+    {
+        $this->client->request('POST', '/api/transcodes', ['auth_bearer' => $this->token, 'json' => ['tracks' => [$this->id('Opening')]]]);
+        self::assertResponseStatusCodeSame(422);
+
+        $this->transcode([$this->id('Opening')], 'my-phone');
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('must be a UUID', (string) $this->client->getResponse()?->getContent(false));
+        self::assertSame([], $this->pending);
+    }
+
     public function testOnlySignedInUsersCanAsk(): void
     {
-        $this->client->request('POST', '/api/transcodes', ['json' => ['tracks' => [$this->id('Opening')]]]);
+        $this->client->request('POST', '/api/transcodes', ['json' => ['device' => self::PHONE, 'tracks' => [$this->id('Opening')]]]);
         $this->collectSentMessages();
 
         self::assertResponseStatusCodeSame(401);
         self::assertSame([], $this->pending);
+    }
+
+    public function testTracksConvertedAheadOfTimeAreKeptByPruneUntilTheyArePlayed(): void
+    {
+        $opening = $this->id('Opening');
+        $this->transcode([$opening]);
+        $this->handlePendingMessages();
+
+        $this->prune();
+
+        self::assertCount(1, glob($this->directory."/track-$opening-*.opus") ?: []);
     }
 
     /**
@@ -186,9 +226,9 @@ final class TranscodeRequestTest extends ApiTestCase
      *
      * @return array<mixed>
      */
-    private function transcode(array $tracks): array
+    private function transcode(array $tracks, string $device = self::PHONE): array
     {
-        $response = $this->client->request('POST', '/api/transcodes', ['auth_bearer' => $this->token, 'json' => ['tracks' => $tracks]]);
+        $response = $this->client->request('POST', '/api/transcodes', ['auth_bearer' => $this->token, 'json' => ['device' => $device, 'tracks' => $tracks]]);
         $this->collectSentMessages();
 
         return 202 === $response->getStatusCode() ? $response->toArray() : [];
@@ -210,15 +250,21 @@ final class TranscodeRequestTest extends ApiTestCase
     }
 
     /**
-     * Does what the background workers do (messenger:consume transcodes), in the order the messages were sent.
+     * Does what a background worker does (messenger:consume transcodes): handles the messages in the order they were
+     * sent, including the rest of the lists that the handler sends back to the queue, until none is left.
      *
-     * @return list<list<string>> The tracks converted for each message
+     * @return list<string> The tracks converted, in the order they were
      */
     private function handlePendingMessages(): array
     {
         $handler = self::getContainer()->get(TranscodeTracksHandler::class);
-        $converted = array_map(static fn (TranscodeTracks $message): array => $handler($message), $this->pending);
-        $this->pending = [];
+        $converted = [];
+        while (null !== $message = array_shift($this->pending)) {
+            if (null !== $id = $handler($message)) {
+                $converted[] = $id;
+            }
+            $this->collectSentMessages();
+        }
 
         return $converted;
     }

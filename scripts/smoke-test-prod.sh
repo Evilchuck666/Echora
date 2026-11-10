@@ -99,7 +99,8 @@ OPUS=$(json 'next((t["opusStreamUrl"] for t in data if t.get("opusStreamUrl")), 
 if [ -z "$FLAC" ]; then
     printf '  skip  %s\n' "no FLAC track on the first page of tracks"
 else
-    transcode() { request "${AUTH[@]}" -X POST -H "Content-Type: application/json" -d "{\"tracks\": [\"$FLAC\"]}" "$BASE/api/transcodes"; }
+    DEVICE=$(python3 -c 'import uuid; print(uuid.uuid4())')
+    transcode() { request "${AUTH[@]}" -X POST -H "Content-Type: application/json" -d "{\"device\": \"$DEVICE\", \"tracks\": [\"$FLAC\"]}" "$BASE/api/transcodes"; }
     transcode
     check "converting ahead of time is accepted at once" '[ "$(status)" = 202 ]'
     # Asking again tells where the track stands; ready at once if an earlier run (or a player) converted it.

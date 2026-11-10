@@ -1,7 +1,7 @@
 # 0011. Converting to Opus ahead of time, in background workers
 
 - **Date:** 2026-11-10
-- **Status:** Accepted
+- **Status:** Partly superseded by [0012](0012-opus-conversion-lists-per-device.md) (one list per device, lists that take turns)
 
 ## Context
 

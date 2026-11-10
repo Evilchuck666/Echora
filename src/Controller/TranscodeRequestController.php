@@ -12,8 +12,9 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * POST /api/transcodes: has the Opus versions of the tracks a client is about to play made in the background, so they
- * are ready when it asks for them. Answers 202 at once, without waiting for any conversion.
+ * POST /api/transcodes: has the Opus versions of the tracks a device is about to play made in the background, so they
+ * are ready when it asks for them. Each device of an account has its own list. Answers 202 at once, without waiting
+ * for any conversion.
  * Documented by App\OpenApi\TranscodesOpenApiFactory.
  */
 final class TranscodeRequestController extends AbstractController
@@ -29,6 +30,6 @@ final class TranscodeRequestController extends AbstractController
         $user = $this->getUser();
         \assert($user instanceof User);
 
-        return $this->json($this->queue->request($user, $request->trackIds()), Response::HTTP_ACCEPTED);
+        return $this->json($this->queue->request($user, $request->deviceId(), $request->trackIds()), Response::HTTP_ACCEPTED);
     }
 }
