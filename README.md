@@ -259,6 +259,8 @@ On Linux, files created from inside the container belong to root. Give them back
 
 To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
 
+Why the API is built the way it is (and where each change came from) is recorded in [docs/decisions](docs/decisions/README.md): one short record per decision, with its commits.
+
 ---
 
 ## 🧪 Tests and code quality

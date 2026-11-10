@@ -10,6 +10,7 @@ Echora is the backend API for a self-hosted music streaming service: it catalogs
 
 - Stack: PHP 8.5, Symfony 8.1, API Platform 5, PostgreSQL 16 via Doctrine ORM, served by FrankenPHP. Docker setup based on the `dunglas/symfony-docker` template.
 - This repo is the API only. The web client (React + TypeScript) lives in a separate repo at `../echora-web` (in production it is built into this image and served by the same Caddy, see below), and native apps for other platforms are planned. When an API change affects clients (fields, endpoints, auth), say so: `../echora-web/CLAUDE.md` documents how the client uses the API.
+- Why the API is the way it is: `docs/decisions/` keeps one record per decision that shaped it (context, decision, consequences, origin, commits). Many were taken from the echora-web repository's sessions. A new decision about the API gets a new record there (next free number, added to its index), whichever repository it is taken from, with only the reasons actually given; a record that no longer holds is marked superseded, not deleted.
 - The "ask before generating" questions in AGENTS.md are answered: Doctrine ORM, a JSON API built with API Platform (no Twig), and multi-user JWT authentication (LexikJWT + gesdinet refresh tokens).
 
 ## Architecture rules
