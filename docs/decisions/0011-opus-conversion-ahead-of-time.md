@@ -67,4 +67,4 @@ per request, and per-user replacement, for the reasons above.
 
 ## Commits
 
-- Not committed yet.
+- `7eea769` feat: convert tracks to Opus ahead of time in background workers
