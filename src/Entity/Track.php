@@ -35,8 +35,7 @@ use Symfony\Component\Uid\Uuid;
         new Get(normalizationContext: ['groups' => ['track:read', 'track:item']]),
     ],
     normalizationContext: ['groups' => ['track:read']],
-    // Album after album in the order of GET /api/albums (year, title), then disc and track number.
-    order: ['album.year' => 'ASC', 'album.title' => 'ASC', 'discNumber' => 'ASC', 'trackNumber' => 'ASC', 'title' => 'ASC'],
+    // Sorted by App\Doctrine\TrackOrderExtension: album artist, album (year, title), disc and track number.
 )]
 class Track
 {

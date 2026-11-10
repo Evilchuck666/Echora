@@ -108,6 +108,19 @@ final class LibraryApiTest extends ApiTestCase
         ]);
     }
 
+    public function testTheWholeLibraryIsListedArtistAfterArtistThenAlbumAfterAlbum(): void
+    {
+        $tracks = $this->client->request('GET', '/api/tracks')->toArray()['member'];
+        self::assertIsArray($tracks);
+
+        // Album artists by name (Test Artist, Unknown Artist, Various Artists), each one's albums by year: the 2021
+        // compilation comes after Test Artist's 2022 album, and the untagged file isn't left for the end.
+        self::assertSame(
+            ['Opening', 'Second Song', 'MP3 Song', 'untagged', 'Guest Track'],
+            array_map(static fn (mixed $track): mixed => \is_array($track) ? $track['title'] : null, $tracks),
+        );
+    }
+
     public function testTheAlbumArtistFilterLeavesOutAppearancesOnOtherArtistsAlbums(): void
     {
         $guestIri = $this->findIriBy(Artist::class, ['name' => 'Guest Artist']);
