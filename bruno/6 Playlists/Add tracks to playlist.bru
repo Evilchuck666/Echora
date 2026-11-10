@@ -1,0 +1,29 @@
+meta {
+  name: Add tracks to playlist
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/playlists/{{playlistId}}/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tracks": ["{{trackId}}", "/api/tracks/{{trackId}}", "{{opusTrackId}}"]
+  }
+}
+
+tests {
+  test("adds the tracks at the end and answers with the playlist", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.id).to.equal(bru.getVar("playlistId"));
+    expect(res.body.trackCount).to.be.at.least(3);
+  });
+}
+
+docs {
+  Adds the tracks at the end, in this order, all or none: here the first track of **List tracks** twice (an id and an IRI) and its first FLAC track. Answers with the playlist and its new `trackCount`. An unknown track, or more than 10 000 items afterwards: 422, nothing added.
+}

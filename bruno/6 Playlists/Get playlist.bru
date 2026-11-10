@@ -1,0 +1,24 @@
+meta {
+  name: Get playlist
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/playlists/{{playlistId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("returns the playlist with its totals", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property("trackCount");
+    expect(res.body).to.have.property("durationMs");
+    expect(res.body.covers.length).to.be.at.most(4);
+  });
+}
+
+docs {
+  The playlist remembered by **Create playlist**. Someone else's playlist is a 404.
+}

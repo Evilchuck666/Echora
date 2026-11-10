@@ -2,7 +2,6 @@
 
 namespace App\Dto;
 
-use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -11,9 +10,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 final readonly class TranscodeRequest
 {
     public const int MAX_TRACKS = 20;
-
-    /** A track's id, or its IRI (/api/tracks/{id}). */
-    public const string TRACK_PATTERN = '#^(?:/api/tracks/)?('.Requirement::UUID.')$#i';
 
     /**
      * @param string       $device Identifier of the device (a UUID the client generates once and keeps): each device
@@ -25,7 +21,7 @@ final readonly class TranscodeRequest
         #[Assert\Uuid(message: 'The id of the device must be a UUID, generated once and kept by the client.')]
         public string $device,
         #[Assert\Count(max: self::MAX_TRACKS, maxMessage: 'At most {{ limit }} tracks per request.')]
-        #[Assert\All([new Assert\Regex(self::TRACK_PATTERN, message: 'Expected the id of a track, or its IRI (/api/tracks/{id}).')])]
+        #[Assert\All([new Assert\Regex(TrackReference::PATTERN, message: TrackReference::MESSAGE)])]
         public array $tracks,
     ) {
     }
@@ -40,13 +36,6 @@ final readonly class TranscodeRequest
      */
     public function trackIds(): array
     {
-        $ids = [];
-        foreach ($this->tracks as $track) {
-            if (1 === preg_match(self::TRACK_PATTERN, $track, $matches)) {
-                $ids[strtolower($matches[1])] = true;
-            }
-        }
-
-        return array_keys($ids);
+        return array_values(array_unique(TrackReference::ids($this->tracks)));
     }
 }

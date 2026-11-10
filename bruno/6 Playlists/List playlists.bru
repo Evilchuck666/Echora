@@ -1,0 +1,28 @@
+meta {
+  name: List playlists
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/playlists
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+tests {
+  test("lists the user's playlists, most recently changed first", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.member).to.be.an("array");
+    const dates = res.body.member.map((playlist) => playlist.updatedAt);
+    expect(dates).to.deep.equal([...dates].sort().reverse());
+  });
+}
+
+docs {
+  The playlists of the signed-in user, the most recently changed first, 30 per page, each with `trackCount`, `durationMs` and up to 4 `covers`.
+}

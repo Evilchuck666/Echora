@@ -48,4 +48,4 @@ required.
 
 ## Commits
 
-- Not committed yet.
+- `bf2c998` feat(transcoding): implement device-specific transcoding lists and improve request handling

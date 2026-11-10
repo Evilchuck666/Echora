@@ -7,6 +7,7 @@ use App\Entity\Artist;
 use App\Entity\Track;
 use App\Repository\AlbumRepository;
 use App\Repository\ArtistRepository;
+use App\Repository\PlaylistRepository;
 use App\Repository\TrackRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -43,6 +44,7 @@ final class LibraryScanner
         private readonly TagReader $tagReader,
         private readonly AlbumCovers $albumCovers,
         private readonly ArtistImages $artistImages,
+        private readonly PlaylistRepository $playlists,
         #[Autowire('%env(resolve:MUSIC_LIBRARY_PATH)%')]
         private readonly string $musicLibraryPath,
     ) {
@@ -122,7 +124,10 @@ final class LibraryScanner
 
         $this->flush();
 
-        $report->removed = $this->tracks->deleteByPaths(array_map(strval(...), array_keys(array_diff_key($known, $seen, $movedFrom))));
+        $removed = array_map(strval(...), array_keys(array_diff_key($known, $seen, $movedFrom)));
+        // Their playlist items go with them (ON DELETE CASCADE): those playlists changed.
+        $this->playlists->touchPlaylistsOfTracksAt($removed);
+        $report->removed = $this->tracks->deleteByPaths($removed);
         $this->albums->deleteWithoutTracks();
         $this->artists->deleteWithoutAlbumsOrTracks();
         $this->albumCovers->update($root, $download, $report);

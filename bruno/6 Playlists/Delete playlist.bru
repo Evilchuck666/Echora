@@ -1,0 +1,21 @@
+meta {
+  name: Delete playlist
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/playlists/{{playlistId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("deletes the playlist", function () {
+    expect(res.status).to.equal(204);
+  });
+}
+
+docs {
+  Deletes the playlist and its items (the tracks stay in the library).
+}

@@ -170,8 +170,15 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `PUT /api/{tracks,albums,artists}/{id}/favourite` | Adds the item to your favourites (204; adding it twice is fine) |
 | `DELETE /api/{tracks,albums,artists}/{id}/favourite` | Removes it from your favourites (204; also when it wasn't one) |
 | `GET /api/favourites/{tracks,albums,artists}` | Your favourites of that kind, newest first |
+| `GET /api/playlists` | Your playlists, the most recently changed first |
+| `POST /api/playlists` | Creates an empty playlist: `{"name": "..."}` (201) |
+| `GET`, `PATCH`, `DELETE /api/playlists/{id}` | One of your playlists; `PATCH` renames it (`{"name": "..."}`) |
+| `GET /api/playlists/{id}/items` | Its items in order, each with its position and whole track |
+| `POST /api/playlists/{id}/items` | Adds tracks at the end: `{"tracks": [...]}` (all or none) |
+| `PATCH /api/playlist_items/{id}` | Moves an item: `{"position": n}` |
+| `DELETE /api/playlist_items/{id}` | Removes an item (that appearance of the track only) |
 
-Responses are JSON-LD by default; send `Accept: application/json` for plain JSON.
+Responses are JSON-LD by default; send `Accept: application/json` for plain JSON. `PATCH` requests send their body as `application/merge-patch+json`.
 
 ### Favourites
 
@@ -190,6 +197,20 @@ Each account keeps its own favourite tracks, albums and artists; no one else see
 Each device of an account has its own list, so a phone and a tablet with the same account don't replace each other's. A request replaces the previous one of the same device: tracks of the older list that aren't converted yet are dropped, so send the whole upcoming list whenever the queue changes, and an empty list to cancel. An account keeps the lists of its 5 most recent devices; those of older ones are dropped. The lists of every device and account take turns, one track each, so no one waits for someone else's whole list. Tracks asked for this way that are already converted count as played, so `app:transcodes:prune` keeps them.
 
 The conversions run in background workers (Symfony Messenger, with its queue in PostgreSQL) that the `php` container starts next to FrankenPHP, never in the PHP workers that answer requests. `TRANSCODE_WORKERS` (1 by default) sets how many tracks are converted at once: each conversion takes one CPU core for a few seconds; `0` turns converting ahead of time off.
+
+### Playlists
+
+Each account has its own playlists; no one else sees them (someone else's playlist, or one of its items, is a 404, as if it didn't exist). A playlist has a name (1 to 100 characters, without spaces at the start or the end, not necessarily unique), its creation and last change dates, and, in every response, its number of items (`trackCount`), their total length (`durationMs`, the tracks whose length is known) and up to four `covers`: the signed cover URLs of the first four different albums with a cover, in the order of the playlist, for a mosaic. Lists are ordered by last change, newest first; any change to a playlist or its items counts, including a scan removing one of its tracks.
+
+The items of a playlist are tracks in an order, at most 10 000:
+
+- the same track may appear several times: each appearance is an item with its own `id`, which is what `PATCH` and `DELETE /api/playlist_items/{id}` act on;
+- `position` is the index of an item in the playlist, from 0, always consecutive: it changes when items before it are added, moved or removed;
+- `POST /api/playlists/{id}/items` with `{"tracks": [ids or IRIs]}` adds them all at the end, in that order (a whole album in one request), or none if one doesn't exist or the playlist would exceed 10 000 items (`422`); it answers with the playlist;
+- `PATCH /api/playlist_items/{id}` with `{"position": n}` moves the item there and shifts the ones in between; beyond the end means the end, a negative position is a `422`;
+- `DELETE /api/playlist_items/{id}` removes that appearance only.
+
+A track that a scan removes disappears from every playlist, and the others keep their order. Moving or renaming files keeps them, as tracks are recognised by their audio. Changes to the same playlist are made one at a time, so two tabs or devices changing it at once never mix up its order.
 
 ### Search
 

@@ -1,0 +1,21 @@
+meta {
+  name: Remove playlist item
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/playlist_items/{{playlistItemId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("removes that appearance of the track", function () {
+    expect(res.status).to.equal(204);
+  });
+}
+
+docs {
+  Removes the item remembered by **List playlist items**: that appearance of the track only. The items after it move up by one.
+}

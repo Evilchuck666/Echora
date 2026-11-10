@@ -1,0 +1,32 @@
+meta {
+  name: Rename playlist
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/playlists/{{playlistId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/merge-patch+json
+}
+
+body:json {
+  {
+    "name": "Bruno playlist (renamed)"
+  }
+}
+
+tests {
+  test("renames the playlist", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.name).to.equal("Bruno playlist (renamed)");
+  });
+}
+
+docs {
+  Renames the playlist (same rules as on creation). Needs `Content-Type: application/merge-patch+json` (415 otherwise).
+}

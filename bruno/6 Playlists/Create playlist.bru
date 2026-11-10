@@ -1,0 +1,35 @@
+meta {
+  name: Create playlist
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/playlists
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Bruno playlist"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("playlistId", res.body.id);
+  }
+}
+
+tests {
+  test("creates an empty playlist", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.trackCount).to.equal(0);
+    expect(res.body.covers).to.be.an("array").that.is.empty;
+  });
+}
+
+docs {
+  Creates an empty playlist (201) and remembers it (`playlistId`). The name has 1 to 100 characters, without spaces at the start or the end; it need not be unique (422 otherwise).
+}

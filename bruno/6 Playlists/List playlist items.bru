@@ -1,0 +1,35 @@
+meta {
+  name: List playlist items
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/playlists/{{playlistId}}/items
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.member.length > 0) {
+    bru.setVar("playlistItemId", res.body.member[res.body.member.length - 1].id);
+  }
+}
+
+tests {
+  test("lists the items in order, with their whole tracks", function () {
+    expect(res.status).to.equal(200);
+    res.body.member.forEach((item, index) => {
+      expect(item.position).to.equal(index + (Number(req.getUrl().match(/page=(\d+)/)?.[1] || 1) - 1) * 30);
+      expect(item.track.streamUrl).to.contain("_hash=");
+    });
+  });
+}
+
+docs {
+  The items of the playlist in order, 30 per page: each with its own `id` (a track added twice is two items), its `position` (from 0), `addedAt` and the whole track, as **List tracks** returns it. Remembers the last item (`playlistItemId`) for **Move playlist item** and **Remove playlist item**.
+}

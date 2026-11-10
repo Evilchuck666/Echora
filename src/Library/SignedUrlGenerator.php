@@ -56,7 +56,15 @@ final readonly class SignedUrlGenerator
             return null;
         }
 
-        return $this->sign('album_cover', $album->getId()->toRfc4122(), self::coverExpiration());
+        return $this->albumCover($album->getId()->toRfc4122());
+    }
+
+    /**
+     * The same, by the album's id, for an album known to have a cover (e.g. the covers of a playlist, read by SQL).
+     */
+    public function albumCover(string $albumId): string
+    {
+        return $this->sign('album_cover', $albumId, self::coverExpiration());
     }
 
     /**
