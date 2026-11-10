@@ -76,6 +76,10 @@ These were left to the implementation, or set by the owner when playlists were a
   out of them.
 - Every track, album and artist response depends on who asks (`favourite`): responses must not be shared between
   users by a cache.
+- Positions are indexes in the order the API has when a request arrives. A client that sends several changes to a
+  playlist without waiting for each answer can have them applied in another order (a removal overtaking a move makes
+  the move land one place off), so clients send them one at a time. Found by the web client against the real API
+  (2026-11-10); it queues them per playlist (`src/library/playlists.ts`).
 
 ## Origin
 
