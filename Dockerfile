@@ -137,6 +137,18 @@ RUN <<-'EOF'
 	rm -rf /var/lib/apt/lists/*
 EOF
 
+# Web client (Echora Web), built from the "web" context: the echora-web repository, WEB_DIR in compose.prod.yaml.
+# Its production build calls the API by path (/api/...): the prod image serves it on the same origin, from /srv/web.
+FROM oven/bun:1.4-slim AS web_build
+
+WORKDIR /web
+
+COPY --from=web package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY --from=web . ./
+RUN bun run build
+
 # Prod FrankenPHP image
 FROM debian:13-slim AS frankenphp_prod
 
@@ -178,8 +190,14 @@ COPY --chown=www-data:0 --from=frankenphp_prod_builder /app/var /app/var
 RUN chmod g=u /app/var
 # Holds the JWT key pair, generated on the first start (jwt_keys volume in compose.prod.yaml).
 RUN install -d -o www-data -g 0 -m 0770 /app/config/jwt
+# Downloaded images and thumbnails (media volume in compose.prod.yaml). Created here so that Docker gives the new
+# volume this owner: a mount point missing from the image belongs to root, and PHP (www-data) couldn't write to it.
+RUN install -d -o www-data -g 0 -m 0770 /app/var/media
 
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
+
+# Served by Caddy at the root of the site (frankenphp/Caddyfile), next to /api.
+COPY --link --from=web_build /web/dist /srv/web
 
 # www-data, numeric so runtimes can verify runAsNonRoot
 USER 33

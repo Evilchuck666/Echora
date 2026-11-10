@@ -6,13 +6,19 @@ services:
     build:
       context: .
       target: frankenphp_prod
+      additional_contexts:
+        # The web client, built into the image and served at the root of the site (Dockerfile: web_build).
+        web: ${WEB_DIR:-../echora-web}
     environment:
       APP_SECRET: ${APP_SECRET}
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       JWT_PASSPHRASE: ${JWT_PASSPHRASE:?Set JWT_PASSPHRASE in prod.env (see prod.env.example)}
-      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:?Set CORS_ALLOW_ORIGIN in prod.env (see prod.env.example)}
+      # The web client is served from the same origin and native apps don't need CORS: by default, no other site
+      # may call the API from a browser ("^$$" matches no origin). See prod.env.example.
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-^$$}
       THEAUDIODB_API_KEY: ${THEAUDIODB_API_KEY-123}
+      REFRESH_TOKEN_GRACE_SECONDS: ${REFRESH_TOKEN_GRACE_SECONDS:-300}
     volumes:
       # Music library, read-only. Set MUSIC_DIR in prod.env (see prod.env.example).
       - ${MUSIC_DIR:?Set MUSIC_DIR to the folder that holds your music (see prod.env.example)}:/music:ro

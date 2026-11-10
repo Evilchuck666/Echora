@@ -40,7 +40,7 @@ The backend and the clients are separate projects that talk only through the API
 |---|---|
 | Backend (this repository) | PHP 8.5, Symfony 8.1, API Platform 5, Doctrine ORM, PostgreSQL 16, getID3, LexikJWT + refresh tokens |
 | Web server | FrankenPHP (Caddy) with automatic HTTPS and HTTP/3 |
-| Web client | React + TypeScript, in a separate repository |
+| Web client | [Echora Web](https://github.com/Evilchuck666/echora-web) (React + TypeScript), in a separate repository; in production, built into this server's image and served at the root of the site |
 | Native apps | Planned, built on the same API |
 | Deployment | Docker Compose, based on [Symfony Docker](https://github.com/dunglas/symfony-docker) |
 
@@ -133,6 +133,7 @@ Open **https://localhost/api** in a browser to explore every endpoint. The OpenA
 1. `POST /api/auth` with `{"username": "...", "password": "..."}` returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days).
 2. Send the JWT on every request: `Authorization: Bearer <token>`. In the documentation page, use the **Authorize** button.
 3. Before it expires, `POST /api/token/refresh` with `{"refresh_token": "..."}` returns a new pair. Each refresh token works once; presenting one that was already used signs that session out, as it may have been stolen. That includes two requests sending the same token at once: only one gets a new pair, so a client running in several places at the same time (e.g. browser tabs) has to let only one of them refresh.
+   One exception covers a refresh whose response never arrived (the page was reloaded or closed, the network dropped): for 5 minutes (`REFRESH_TOKEN_GRACE_SECONDS`), the spent token still works as long as the one that replaced it hasn't been used, and returns a new pair. Theft is still detected: whoever holds the replaced pair is signed out as soon as they use it.
 4. To sign out, `POST /api/logout` with `{"refresh_token": "..."}`: the session can't be renewed any more. It needs no JWT, so it also works once the JWT has expired. A JWT already issued keeps working until it expires (one hour at most).
 
 Every track includes a `streamUrl`: a signed link to its audio, valid for six hours, that works without the `Authorization` header. Use it as the `src` of an `<audio>` element or hand it to a native media player. When it expires, fetch the track again for a new one.
@@ -168,7 +169,7 @@ Responses are JSON-LD by default; send `Accept: application/json` for plain JSON
 
 The filters of the lists (`name`, `title`) still match one field, and don't ignore accents.
 
-Browsers only let web clients on other origins call the API when `CORS_ALLOW_ORIGIN` allows them. In development it allows `localhost` on any port; in production, set it in `prod.env` to the address of your web client.
+Browsers only let web clients on other origins call the API when `CORS_ALLOW_ORIGIN` allows them. In development it allows `localhost` on any port, for the web client's dev server. In production the web client is served from the same origin as the API and needs no CORS, so no other site is allowed unless you set `CORS_ALLOW_ORIGIN` in `prod.env`.
 
 ---
 
@@ -192,6 +193,14 @@ To import the API into another tool instead, use `https://localhost/api/docs.jso
 
 ## 🌍 Production
 
+The production image serves the whole of Echora on your domain: the [web client](https://github.com/Evilchuck666/echora-web) at `https://your-domain/` and the API at `https://your-domain/api`. The web client is built into the image from a checkout of its repository next to this one (`../echora-web`; set `WEB_DIR` in `prod.env` if it lives elsewhere):
+
+```sh
+git clone https://github.com/Evilchuck666/Echora.git
+git clone https://github.com/Evilchuck666/echora-web.git
+cd Echora
+```
+
 Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images and create your account:
 
 ```sh
@@ -202,11 +211,21 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:library:scan
 ```
 
-`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically.
+`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically. Open `https://your-domain/` and sign in.
+
+To update, pull both repositories and run the `build` and `up` commands again: the image is rebuilt with the new API and web client, and migrations run on start.
+
+Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one. Expired entries stay until removed: run `bin/console cache:pool:prune` now and then (e.g. weekly from cron, with the same `docker compose ... exec php` prefix).
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 
 Album covers and artist images downloaded from TheAudioDB and the thumbnails are kept in the `media` volume. Losing it costs nothing but time: thumbnails are made again on request, and the next scan downloads the images again.
+
+A `media` volume created by Echora versions older than this guide belongs to root, and Echora can't write to it (artist thumbnails fail with an error 500). Give it to Echora's user once:
+
+```sh
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml run --rm --user 0 --entrypoint chown php -R 33:0 /app/var/media
+```
 
 ---
 
@@ -256,7 +275,7 @@ GitHub Actions (`.github/workflows/ci.yaml`) builds the Docker images and runs t
 
 ## 🚧 Status
 
-Echora is in early development. The library, the browsing API, streaming and user accounts work; the web client is next.
+Echora is in early development. The library, the browsing API, streaming, search and user accounts work, and the [web client](https://github.com/Evilchuck666/echora-web) browses, searches and plays the library.
 
 ---
 

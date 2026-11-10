@@ -8,6 +8,10 @@ gesdinet_jwt_refresh_token:
     # Presenting a spent token (likely stolen) revokes every token of its chain.
     reuse_detection:
         enabled: true
+        # Persistent (config/packages/cache.yaml). Spent tokens are remembered for the refresh token ttl.
+        cache: cache.refresh_tokens
+    # A token presented again within the grace period, because the response to its refresh was lost, is taken as
+    # its successor instead of revoking the session: App\Security\RefreshTokenGraceListener.
     # Store only a hash, so a copy of the database cannot be used to refresh.
     hash_tokens:
         enabled: true

@@ -100,13 +100,15 @@ final class AuthenticationTest extends ApiTestCase
     {
         $first = $this->signIn();
         $second = $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $first['refresh_token']]])->toArray();
+        $third = $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $second['refresh_token']]])->toArray();
 
-        // Someone replays the spent token (e.g. it was stolen)...
+        // Someone replays a spent token (e.g. it was stolen); its successor was used, so no grace period applies
+        // (see RefreshTokenGraceTest)...
         $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $first['refresh_token']]]);
         self::assertResponseStatusCodeSame(401);
 
-        // ...so the token that replaced it stops working too.
-        $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $second['refresh_token']]]);
+        // ...so the latest token stops working too.
+        $this->client->request('POST', '/api/token/refresh', ['json' => ['refresh_token' => $third['refresh_token']]]);
         self::assertResponseStatusCodeSame(401);
     }
 

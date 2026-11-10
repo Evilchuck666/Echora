@@ -15,5 +15,9 @@ framework:
         #app: cache.adapter.apcu
 
         # Namespaced pools use the above "app" backend by default
-        #pools:
-            #my.dedicated.cache: null
+        pools:
+            # Refresh token bookkeeping: spent tokens (reuse detection) and the successors kept for the grace
+            # period (App\Security\RefreshTokenSuccessors). In PostgreSQL (the cache_items table), not in var/cache:
+            # it has to survive restarts and deploys, or a replayed token would no longer be recognised.
+            cache.refresh_tokens:
+                adapter: cache.adapter.doctrine_dbal
