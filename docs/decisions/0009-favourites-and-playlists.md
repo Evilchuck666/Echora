@@ -85,4 +85,4 @@ Playlists were asked for from the Echora Web repository, on the design above (20
 ## Commits
 
 - `2af7766` feat: implement favourites functionality for tracks, albums, and artists
-- Playlists: not committed yet.
+- `379a827` feat(playlists): add per-user playlists with ordered items
