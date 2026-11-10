@@ -47,4 +47,4 @@ order of the albums was asked from the Echora Web repository too, for its "Album
 
 - `aa7e435` feat: enhance track listing with album artist filter and improved sorting
 - `48c5126` feat: implement track sorting by album artist and enhance API documentation
-- Albums in the order of the library: not committed yet.
+- `7b86fa7` feat(albums): list albums in the order of the library
