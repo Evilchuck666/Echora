@@ -12,7 +12,7 @@ use Doctrine\ORM\QueryBuilder;
 
 /**
  * Sorts GET /api/tracks in the order of the library as it is browsed: album artists by name, their albums by year
- * and title (as GET /api/albums), then disc and track number. The same for a whole library, an artist's albums or
+ * and title (the order of GET /api/albums, set by the `order` of App\Entity\Album), then disc and track number. The same for a whole library, an artist's albums or
  * one album; favourites are in the order they were added instead (FavouritesExtension). API Platform's own `order`
  * can't reach the album's artist: it follows one relation, not two.
  */

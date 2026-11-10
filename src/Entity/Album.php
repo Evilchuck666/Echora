@@ -36,7 +36,11 @@ use Symfony\Component\Uid\Uuid;
         new Get(),
     ],
     normalizationContext: ['groups' => ['album:read']],
-    order: ['year' => 'ASC', 'title' => 'ASC'],
+    // The order of the library, as GET /api/tracks (App\Doctrine\TrackOrderExtension): album artists by name, then
+    // year (no year last, PostgreSQL's ASC) and title; the id makes ties stable across pages. With ?artist= it comes down
+    // to year and title. The favourites set their own order first (App\Doctrine\FavouritesExtension), so this one
+    // steps aside for them.
+    order: ['artist.name' => 'ASC', 'year' => 'ASC', 'title' => 'ASC', 'id' => 'ASC'],
 )]
 class Album
 {

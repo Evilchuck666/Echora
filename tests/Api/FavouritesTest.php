@@ -76,6 +76,22 @@ final class FavouritesTest extends ApiTestCase
         self::assertJsonContains(['favourite' => false]);
     }
 
+    public function testFavouriteAlbumsStayInTheOrderTheyWereMarkedNotInTheOrderOfTheLibrary(): void
+    {
+        foreach (['First Album', 'Second Album', 'Compilation'] as $title) {
+            $this->client->request('PUT', $this->findIriBy(Album::class, ['title' => $title]).'/favourite');
+        }
+
+        $albums = $this->client->request('GET', '/api/favourites/albums')->toArray()['member'];
+        self::assertIsArray($albums);
+
+        // Newest first: neither the library's order (First, Second, Compilation) nor by year (First, Compilation, Second).
+        self::assertSame(
+            ['Compilation', 'Second Album', 'First Album'],
+            array_map(static fn (mixed $album): mixed => \is_array($album) ? $album['title'] : null, $albums),
+        );
+    }
+
     public function testAddingAndRemovingTwiceIsNotAnError(): void
     {
         $iri = (string) $this->findIriBy(Track::class, ['title' => 'Opening']);

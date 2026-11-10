@@ -158,7 +158,7 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `POST /api/logout` | Invalidates a refresh token (signs that session out) |
 | `GET /api/me` | The authenticated account |
 | `GET /api/artists` | Artists, by name. Filter: `name` |
-| `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |
+| `GET /api/albums` | Albums in the order of the library: album artists by name, then each one's albums by year (undated ones last) and title. Filters: `artist` (IRI: one artist's albums, by year and title), `title`, `year` |
 | `GET /api/tracks` | Tracks in the order of the library: album artists by name, their albums by year and title, then disc and track number. Filters: `album` (IRI), `artist` (IRI of the track artist), `albumArtist` (IRI: every track of an artist's own albums), `title`, `genre` |
 | `GET /api/search?q=...` | Artists, albums and tracks matching a search, at once (see below) |
 | `GET /api/{artists,albums,tracks}/{id}` | One item. A single track also includes its `lyrics`; lists only say `hasLyrics` |

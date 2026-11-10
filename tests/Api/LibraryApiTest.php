@@ -64,6 +64,37 @@ final class LibraryApiTest extends ApiTestCase
         ]);
     }
 
+    public function testAllAlbumsAreListedArtistAfterArtistThenByYear(): void
+    {
+        $albums = $this->client->request('GET', '/api/albums')->toArray()['member'];
+        self::assertIsArray($albums);
+
+        // Test Artist (2020, 2022), Unknown Artist, then Various Artists' 2021 compilation: by year alone, it would come
+        // between Test Artist's two albums.
+        self::assertSame(
+            [['Test Artist', 'First Album'], ['Test Artist', 'Second Album'], ['Unknown Artist', 'Unknown Album'], ['Various Artists', 'Compilation']],
+            array_map(static fn (mixed $album): array => \is_array($album) && \is_array($album['artist']) ? [$album['artist']['name'], $album['title']] : [], $albums),
+        );
+    }
+
+    public function testAnArtistsAlbumsGoByYearNotByTitleWithUndatedOnesLastAlsoInTheWholeList(): void
+    {
+        $entityManager = self::getContainer()->get('doctrine.orm.entity_manager');
+        $artist = $entityManager->getRepository(Artist::class)->findOneBy(['name' => 'Test Artist']);
+        self::assertInstanceOf(Artist::class, $artist);
+        $entityManager->persist(new Album($artist, 'Zero Album', 2019));
+        $entityManager->persist(new Album($artist, 'Album Without Year'));
+        $entityManager->flush();
+        $titles = static fn (mixed $albums): array => \is_array($albums) ? array_map(static fn (mixed $album): mixed => \is_array($album) ? $album['title'] : null, $albums) : [];
+
+        $page = $this->client->request('GET', '/api/albums?artist='.$this->findIriBy(Artist::class, ['name' => 'Test Artist']))->toArray()['member'];
+        $all = $this->client->request('GET', '/api/albums')->toArray()['member'];
+
+        $expected = ['Zero Album', 'First Album', 'Second Album', 'Album Without Year'];
+        self::assertSame($expected, $titles($page));
+        self::assertSame([...$expected, 'Unknown Album', 'Compilation'], $titles($all));
+    }
+
     public function testTheTracksOfAnAlbumAreListedInOrder(): void
     {
         $albumIri = $this->findIriBy(Album::class, ['title' => 'First Album']);

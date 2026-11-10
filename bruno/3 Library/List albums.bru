@@ -29,12 +29,19 @@ script:post-response {
 }
 
 tests {
-  test("lists albums", function () {
+  test("lists albums artist after artist", function () {
     expect(res.status).to.equal(200);
     expect(res.body.member).to.be.an("array");
+    // Album artists by name: one artist's albums all come together.
+    const artists = res.body.member.map((album) => album.artist.name);
+    artists.forEach((name, index) => {
+      if (index > 0 && name !== artists[index - 1]) {
+        expect(artists.slice(index)).to.not.include(artists[index - 1]);
+      }
+    });
   });
 }
 
 docs {
-  Albums sorted by year. Enable `artist` to list the albums of the artist found by **List artists**. Remembers the first album as `albumIri`, and the first one with a cover for **4 Media** (`coverAlbumIri`, `coverUrl`).
+  Albums in the order of the library: album artists by name, then each one's albums by year (undated ones last) and title, the album id last so that pages never repeat or skip one. Enable `artist` to list the albums of the artist found by **List artists** (by year and title). Remembers the first album as `albumIri`, and the first one with a cover for **4 Media** (`coverAlbumIri`, `coverUrl`).
 }
