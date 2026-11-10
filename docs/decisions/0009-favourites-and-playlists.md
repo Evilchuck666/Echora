@@ -116,4 +116,4 @@ asked from the Echora Web repository too (2026-11-10), replacing the order by la
 
 - `2af7766` feat: implement favourites functionality for tracks, albums, and artists
 - `379a827` feat(playlists): add per-user playlists with ordered items
-- Manual order of playlists: not committed yet.
+- `4e2e9e7` feat(playlists): let each user order their playlists by hand
