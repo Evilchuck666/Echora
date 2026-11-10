@@ -153,7 +153,7 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `GET /api/me` | The authenticated account |
 | `GET /api/artists` | Artists, by name. Filter: `name` |
 | `GET /api/albums` | Albums, by year. Filters: `artist` (IRI), `title`, `year` |
-| `GET /api/tracks` | Tracks, by disc and track number. Filters: `album` (IRI), `artist` (IRI), `title`, `genre` |
+| `GET /api/tracks` | Tracks, album after album (by year and title), then by disc and track number. Filters: `album` (IRI), `artist` (IRI of the track artist), `albumArtist` (IRI: every track of an artist's own albums), `title`, `genre` |
 | `GET /api/search?q=...` | Artists, albums and tracks matching a search, at once (see below) |
 | `GET /api/{artists,albums,tracks}/{id}` | One item. A single track also includes its `lyrics`; lists only say `hasLyrics` |
 | `GET /api/tracks/{id}/stream` | The audio file, with HTTP Range support. Use the track's `streamUrl` |

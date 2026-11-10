@@ -90,6 +90,36 @@ final class LibraryApiTest extends ApiTestCase
         ]);
     }
 
+    public function testEveryTrackOfAnArtistsAlbumsIsListedAlbumAfterAlbum(): void
+    {
+        $artistIri = $this->findIriBy(Artist::class, ['name' => 'Test Artist']);
+
+        $this->client->request('GET', '/api/tracks?albumArtist='.$artistIri);
+
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains([
+            'totalItems' => 3,
+            'member' => [
+                ['title' => 'Opening', 'album' => ['title' => 'First Album']],
+                ['title' => 'Second Song', 'album' => ['title' => 'First Album']],
+                // Track 1 of the later album comes after track 2 of the earlier one.
+                ['title' => 'MP3 Song', 'album' => ['title' => 'Second Album']],
+            ],
+        ]);
+    }
+
+    public function testTheAlbumArtistFilterLeavesOutAppearancesOnOtherArtistsAlbums(): void
+    {
+        $guestIri = $this->findIriBy(Artist::class, ['name' => 'Guest Artist']);
+
+        $this->client->request('GET', '/api/tracks?albumArtist='.$guestIri);
+        self::assertJsonContains(['totalItems' => 0]);
+
+        // The track artist filter does find them.
+        $this->client->request('GET', '/api/tracks?artist='.$guestIri);
+        self::assertJsonContains(['totalItems' => 1, 'member' => [['title' => 'Guest Track']]]);
+    }
+
     public function testAlbumsComeWithASignedCoverUrlWhenTheyHaveACover(): void
     {
         $albums = $this->client->request('GET', '/api/albums?title=album')->toArray()['member'];

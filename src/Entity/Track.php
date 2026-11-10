@@ -27,6 +27,7 @@ use Symfony\Component\Uid\Uuid;
         new GetCollection(parameters: [
             'album' => new QueryParameter(filter: new IriFilter(), property: 'album', description: 'IRI of the album, e.g. /api/albums/{id}'),
             'artist' => new QueryParameter(filter: new IriFilter(), property: 'artist', description: 'IRI of the track artist, e.g. /api/artists/{id}'),
+            'albumArtist' => new QueryParameter(filter: new IriFilter(), property: 'album.artist', description: 'IRI of the album artist, e.g. /api/artists/{id}: every track of their albums, album after album'),
             'title' => new QueryParameter(filter: new PartialSearchFilter(), property: 'title', description: 'Part of the track title, case-insensitive'),
             'genre' => new QueryParameter(filter: new ExactFilter(), property: 'genre', description: 'Genre'),
         ]),
@@ -34,7 +35,8 @@ use Symfony\Component\Uid\Uuid;
         new Get(normalizationContext: ['groups' => ['track:read', 'track:item']]),
     ],
     normalizationContext: ['groups' => ['track:read']],
-    order: ['discNumber' => 'ASC', 'trackNumber' => 'ASC', 'title' => 'ASC'],
+    // Album after album in the order of GET /api/albums (year, title), then disc and track number.
+    order: ['album.year' => 'ASC', 'album.title' => 'ASC', 'discNumber' => 'ASC', 'trackNumber' => 'ASC', 'title' => 'ASC'],
 )]
 class Track
 {
