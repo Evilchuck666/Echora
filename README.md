@@ -215,6 +215,8 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php
 
 To update, pull both repositories and run the `build` and `up` commands again: the image is rebuilt with the new API and web client, and migrations run on start.
 
+After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once).
+
 Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one. Expired entries stay until removed: run `bin/console cache:pool:prune` now and then (e.g. weekly from cron, with the same `docker compose ... exec php` prefix).
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
@@ -270,6 +272,8 @@ Then run every check the CI runs, or each one on its own:
 | `docker compose exec php composer test` | Runs the [PHPUnit](https://phpunit.de/) test suite |
 
 GitHub Actions (`.github/workflows/ci.yaml`) builds the Docker images and runs the same checks, plus the Doctrine migrations and schema validation, on every push to `main` and on pull requests.
+
+A second job builds the **production image**, with the web client from [echora-web](https://github.com/Evilchuck666/echora-web)'s `main` branch (another branch, tag or commit when started by hand), starts it with the test library, and runs `scripts/smoke-test-prod.sh` against it: the web client at the root of the site, the API, signing in, audio and images sent by Caddy, CORS closed.
 
 ---
 

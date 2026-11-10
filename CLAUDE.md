@@ -41,6 +41,7 @@ Echora is the backend API for a self-hosted music streaming service: it catalogs
 
 ## Testing
 
+- CI has two jobs: `tests` (dev image: style, PHPStan, PHPUnit, schema) and `production` (the prod image, built with echora-web's `main` checked out next to this repository, started with `tests/Fixtures/music`, then `scripts/smoke-test-prod.sh`). When a change affects how production serves something (Caddyfile, Dockerfile prod stages, `compose.prod.yaml`, media, auth), add a check to the smoke test. It must keep working against any deployed library: no fixture names. Accounts are created through a pseudo-terminal: `printf 'pw\npw\n' | script -qec "docker compose exec php bin/console app:user:create <name>" /dev/null`.
 - `bruno/` is a Bruno collection of every endpoint (`.bru` files, credentials in the git-ignored `bruno/.env`). Update it in the same change whenever an endpoint, a parameter or the authentication changes.
 
 - Tests scan `tests/Fixtures/music` (set in `.env.test`), never the real library. The fixtures are one-second silent files generated with ffmpeg (covers: 8×8 images); add new cases the same way and keep them tiny. ffmpeg writes MP3 lyrics as a TXXX frame, not USLT: use mutagen (`python3`) for a real USLT.
