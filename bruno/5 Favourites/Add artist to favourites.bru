@@ -1,0 +1,17 @@
+meta {
+  name: Add artist to favourites
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}{{artistIri}}/favourite
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("is a favourite now (idempotent: 204 every time)", function () {
+    expect(res.status).to.equal(204);
+  });
+}

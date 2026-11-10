@@ -1,0 +1,23 @@
+meta {
+  name: List favourite artists
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/favourites/artists
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+tests {
+  test("lists the favourite artists, newest first", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.member).to.be.an("array");
+    res.body.member.forEach((item) => expect(item.favourite).to.equal(true));
+  });
+}

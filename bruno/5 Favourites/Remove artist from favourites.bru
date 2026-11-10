@@ -1,0 +1,17 @@
+meta {
+  name: Remove artist from favourites
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}{{artistIri}}/favourite
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("is not a favourite now (idempotent: 204 every time)", function () {
+    expect(res.status).to.equal(204);
+  });
+}

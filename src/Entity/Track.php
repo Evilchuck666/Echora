@@ -32,6 +32,11 @@ use Symfony\Component\Uid\Uuid;
             'genre' => new QueryParameter(filter: new ExactFilter(), property: 'genre', description: 'Genre'),
         ]),
         // Lyrics only come with a single track, to keep lists light.
+        new GetCollection(
+            uriTemplate: '/favourites/tracks',
+            name: 'favourites_tracks',
+            description: 'The tracks the user making the request marked as favourites, newest first.',
+        ),
         new Get(normalizationContext: ['groups' => ['track:read', 'track:item']]),
     ],
     normalizationContext: ['groups' => ['track:read']],
@@ -124,6 +129,14 @@ class Track
     #[ApiProperty(description: 'Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds)')]
     #[Groups(['track:read'])]
     private ?string $opusStreamUrl = null;
+
+    /**
+     * Whether the user the request is authenticated as has this track among their favourites. Not stored: filled
+     * when the track is serialized (App\Serializer\FavouriteNormalizer).
+     */
+    #[ApiProperty(description: 'Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)')]
+    #[Groups(['track:read'])]
+    private bool $favourite = false;
 
     /**
      * @param string $path Path of the audio file, relative to the music library folder. Never exposed.
@@ -275,5 +288,15 @@ class Track
     public function setOpusStreamUrl(?string $opusStreamUrl): void
     {
         $this->opusStreamUrl = $opusStreamUrl;
+    }
+
+    public function isFavourite(): bool
+    {
+        return $this->favourite;
+    }
+
+    public function setFavourite(bool $favourite): void
+    {
+        $this->favourite = $favourite;
     }
 }

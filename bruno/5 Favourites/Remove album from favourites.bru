@@ -1,0 +1,17 @@
+meta {
+  name: Remove album from favourites
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}{{albumIri}}/favourite
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("is not a favourite now (idempotent: 204 every time)", function () {
+    expect(res.status).to.equal(204);
+  });
+}

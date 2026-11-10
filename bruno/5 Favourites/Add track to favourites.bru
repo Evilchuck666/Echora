@@ -1,0 +1,17 @@
+meta {
+  name: Add track to favourites
+  type: http
+  seq: 1
+}
+
+put {
+  url: {{baseUrl}}/api/tracks/{{trackId}}/favourite
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("is a favourite now (idempotent: 204 every time)", function () {
+    expect(res.status).to.equal(204);
+  });
+}

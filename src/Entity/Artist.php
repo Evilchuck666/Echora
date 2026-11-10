@@ -23,6 +23,11 @@ use Symfony\Component\Uid\Uuid;
         new GetCollection(parameters: [
             'name' => new QueryParameter(filter: new PartialSearchFilter(), property: 'name', description: 'Part of the artist name, case-insensitive'),
         ]),
+        new GetCollection(
+            uriTemplate: '/favourites/artists',
+            name: 'favourites_artists',
+            description: 'The artists the user making the request marked as favourites, newest first.',
+        ),
         new Get(),
     ],
     normalizationContext: ['groups' => ['artist:read']],
@@ -54,6 +59,14 @@ class Artist
     #[ApiProperty(description: 'Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img>')]
     #[Groups(['artist:read'])]
     private ?string $coverUrl = null;
+
+    /**
+     * Whether the user the request is authenticated as has this artist among their favourites. Not stored: filled
+     * when the artist is serialized (App\Serializer\FavouriteNormalizer).
+     */
+    #[ApiProperty(description: 'Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)')]
+    #[Groups(['artist:read'])]
+    private bool $favourite = false;
 
     public function __construct(
         #[ORM\Column(length: 255, unique: true)]
@@ -117,5 +130,15 @@ class Artist
     public function setCoverUrl(?string $coverUrl): void
     {
         $this->coverUrl = $coverUrl;
+    }
+
+    public function isFavourite(): bool
+    {
+        return $this->favourite;
+    }
+
+    public function setFavourite(bool $favourite): void
+    {
+        $this->favourite = $favourite;
     }
 }

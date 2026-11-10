@@ -28,6 +28,11 @@ use Symfony\Component\Uid\Uuid;
             'title' => new QueryParameter(filter: new PartialSearchFilter(), property: 'title', description: 'Part of the album title, case-insensitive'),
             'year' => new QueryParameter(filter: new ExactFilter(), property: 'year', description: 'Release year'),
         ]),
+        new GetCollection(
+            uriTemplate: '/favourites/albums',
+            name: 'favourites_albums',
+            description: 'The albums the user making the request marked as favourites, newest first.',
+        ),
         new Get(),
     ],
     normalizationContext: ['groups' => ['album:read']],
@@ -59,6 +64,14 @@ class Album
     #[ApiProperty(description: 'Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img>')]
     #[Groups(['album:read', 'track:read'])]
     private ?string $coverUrl = null;
+
+    /**
+     * Whether the user the request is authenticated as has this album among their favourites. Not stored: filled
+     * when the album is serialized (App\Serializer\FavouriteNormalizer).
+     */
+    #[ApiProperty(description: 'Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)')]
+    #[Groups(['album:read'])]
+    private bool $favourite = false;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -144,5 +157,15 @@ class Album
     public function setCoverUrl(?string $coverUrl): void
     {
         $this->coverUrl = $coverUrl;
+    }
+
+    public function isFavourite(): bool
+    {
+        return $this->favourite;
+    }
+
+    public function setFavourite(bool $favourite): void
+    {
+        $this->favourite = $favourite;
     }
 }

@@ -1,0 +1,17 @@
+meta {
+  name: Add album to favourites
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}{{albumIri}}/favourite
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("is a favourite now (idempotent: 204 every time)", function () {
+    expect(res.status).to.equal(204);
+  });
+}

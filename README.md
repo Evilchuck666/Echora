@@ -164,8 +164,15 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `GET /api/tracks/{id}/stream/opus` | The audio of a FLAC track converted to Opus, with HTTP Range support. Use the track's `opusStreamUrl` |
 | `GET /api/albums/{id}/cover` | The cover image. Use the album's `coverUrl` |
 | `GET /api/artists/{id}/cover` | A thumbnail of the artist's image (JPEG, up to 300×300). Use the artist's `coverUrl` |
+| `PUT /api/{tracks,albums,artists}/{id}/favourite` | Adds the item to your favourites (204; adding it twice is fine) |
+| `DELETE /api/{tracks,albums,artists}/{id}/favourite` | Removes it from your favourites (204; also when it wasn't one) |
+| `GET /api/favourites/{tracks,albums,artists}` | Your favourites of that kind, newest first |
 
 Responses are JSON-LD by default; send `Accept: application/json` for plain JSON.
+
+### Favourites
+
+Each account keeps its own favourite tracks, albums and artists; no one else sees them. Every track, album and artist the API returns, in lists, single items and search results alike, says whether it is one of yours (`"favourite": true`), so a client can show it without asking again. A favourite goes away with its item (a track whose file was deleted, an album left without tracks); moving or renaming files keeps them, as tracks are recognised by their audio.
 
 ### Search
 

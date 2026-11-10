@@ -1,0 +1,23 @@
+meta {
+  name: List favourite albums
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/favourites/albums
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+tests {
+  test("lists the favourite albums, newest first", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.member).to.be.an("array");
+    res.body.member.forEach((item) => expect(item.favourite).to.equal(true));
+  });
+}

@@ -1,0 +1,23 @@
+meta {
+  name: List favourite tracks
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/favourites/tracks
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+tests {
+  test("lists the favourite tracks, newest first", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.member).to.be.an("array");
+    res.body.member.forEach((item) => expect(item.favourite).to.equal(true));
+  });
+}

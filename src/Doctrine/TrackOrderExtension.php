@@ -13,13 +13,14 @@ use Doctrine\ORM\QueryBuilder;
 /**
  * Sorts GET /api/tracks in the order of the library as it is browsed: album artists by name, their albums by year
  * and title (as GET /api/albums), then disc and track number. The same for a whole library, an artist's albums or
- * one album. API Platform's own `order` can't reach the album's artist: it follows one relation, not two.
+ * one album; favourites are in the order they were added instead (FavouritesExtension). API Platform's own `order`
+ * can't reach the album's artist: it follows one relation, not two.
  */
 final class TrackOrderExtension implements QueryCollectionExtensionInterface
 {
     public function applyToCollection(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, ?Operation $operation = null, array $context = []): void
     {
-        if (Track::class !== $resourceClass) {
+        if (Track::class !== $resourceClass || FavouritesExtension::isFavouritesOperation($operation)) {
             return;
         }
         $track = $queryBuilder->getRootAliases()[0];
