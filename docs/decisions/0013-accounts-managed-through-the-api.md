@@ -72,4 +72,4 @@ who decided:
 
 ## Commits
 
-- Not committed yet.
+- `323fa2c` feat(accounts): manage accounts through the API, the first one becoming the administrator
