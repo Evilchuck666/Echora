@@ -1,0 +1,22 @@
+meta {
+  name: My picture with signed URL
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{avatarUrl}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("serves the picture without the JWT", function () {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/jpeg");
+  });
+}
+
+docs {
+  The `avatarUrl` remembered by **Upload my picture**: signed, so it works without the Authorization header (as the src of an `<img>`).
+}

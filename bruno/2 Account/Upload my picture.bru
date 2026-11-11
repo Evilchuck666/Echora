@@ -1,0 +1,32 @@
+meta {
+  name: Upload my picture
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/me/avatar
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  file: @file(fixtures/avatar.png)
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("avatarUrl", res.body.avatarUrl);
+  }
+}
+
+tests {
+  test("sets the profile picture", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.avatarUrl).to.contain("_hash=");
+  });
+}
+
+docs {
+  Sends `bruno/fixtures/avatar.png` as the profile picture (`multipart/form-data`, field `file`; JPEG, PNG or WebP, up to 5 MB). It is cropped to a square and stored as JPEG. Remembers the new `avatarUrl` for **My picture with signed URL**.
+}

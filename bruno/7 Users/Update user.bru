@@ -1,0 +1,33 @@
+meta {
+  name: Update user
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/users/{{userId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/merge-patch+json
+}
+
+body:json {
+  {
+    "name": "Bruno Renamed",
+    "password": "bruno-new-password"
+  }
+}
+
+tests {
+  test("changes the account", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.name).to.equal("Bruno Renamed");
+  });
+}
+
+docs {
+  Any of `name`, `username`, `email`, `admin` and `password` (a new password signs the account out of every device). Making the last administrator a plain user is a 409. Needs `Content-Type: application/merge-patch+json`.
+}

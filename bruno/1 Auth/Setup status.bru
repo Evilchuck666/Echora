@@ -1,0 +1,26 @@
+meta {
+  name: Setup status
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/setup
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("says whether the server still needs its first account", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.required).to.be.a("boolean");
+  });
+}
+
+docs {
+  Public. `required` is true while the server has no account: clients then show a screen to create the administrator (**Set up the server**) instead of signing in.
+}

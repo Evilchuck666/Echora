@@ -1,0 +1,37 @@
+meta {
+  name: Set up the server
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/setup
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{process.env.ECHORA_USERNAME}}",
+    "name": "Administrator",
+    "password": "{{process.env.ECHORA_PASSWORD}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("token", res.body.token);
+    bru.setVar("refreshToken", res.body.refresh_token);
+    bru.setVar("tokenExpiresAt", Date.now() + 55 * 60 * 1000);
+  }
+}
+
+tests {
+  test("creates the administrator on a new server, and is closed afterwards", function () {
+    expect(res.status).to.be.oneOf([201, 409]);
+  });
+}
+
+docs {
+  Public, and only while the server has no account (409 afterwards): creates the first account, which becomes the administrator, and signs it in (201, a token pair, as **Sign in**). Uses the credentials of `bruno/.env`, so put an email in `ECHORA_USERNAME` to try it on a new server. The username is made from the email.
+}

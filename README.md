@@ -66,10 +66,9 @@ docker compose down --remove-orphans
 
 Your music folder is mounted read-only from `~/Music`. If it lives somewhere else, start the stack with `MUSIC_DIR=/path/to/music docker compose up --wait`.
 
-Create your account, then import your music:
+Import your music, then open the web client and create your account: the first one becomes the administrator (see [Accounts](#-accounts)).
 
 ```sh
-docker compose exec php bin/console app:user:create <username> --admin
 docker compose exec php bin/console app:library:scan
 ```
 
@@ -116,14 +115,20 @@ Tracks scanned by Echora versions older than this feature aren't recognised yet:
 
 ## 👤 Accounts
 
-Accounts are managed from the console. Passwords are always typed in a hidden prompt, never passed as arguments, so they don't end up in your shell history.
+Like Immich, a new server has no account: whoever opens it first creates the **administrator** (`GET /api/setup` says whether that is still to do, `POST /api/setup` does it, and signs them in). There is no sign-up afterwards: administrators create the other accounts (`/api/users`), and can change, demote or delete them. The server always keeps at least one administrator, and an administrator can't delete their own account.
+
+An account has an **email** and a **name** (shown to others), given when it is created, and a **username** made from the email (`ana` for `ana@example.com`, `ana-2` if it is taken). It signs in with its email or its username. Everyone can change their own name, username, email, password and profile picture (`/api/me`). Sessions name accounts by their id, so renaming one keeps it signed in; a new password signs it out of every other device.
+
+Profile pictures are JPEG, PNG or WebP files of up to 5 MB, cropped to a square of up to 300×300 and stored as JPEG (without their metadata) in the media folder.
+
+The console commands remain, to get back in when no administrator can (like `immich-admin`). Passwords are always typed in a hidden prompt, never passed as arguments, so they don't end up in your shell history.
 
 | Command | What it does |
 |---|---|
-| `app:user:create <username> [--admin]` | Creates an account |
+| `app:user:create <email> [--name=...] [--admin]` | Creates an account (its username comes from the email) |
 | `app:user:list` | Lists the accounts |
-| `app:user:password <username>` | Changes a password and signs the account out of every device |
-| `app:user:delete <username>` | Deletes an account and signs it out of every device |
+| `app:user:password <username or email>` | Changes a password and signs the account out of every device |
+| `app:user:delete <username or email>` | Deletes an account, its playlists, favourites and picture, and signs it out |
 
 Run them with `docker compose exec php bin/console ...`.
 
@@ -135,7 +140,7 @@ Open **https://localhost/api** in a browser to explore every endpoint. The OpenA
 
 ### Authentication
 
-1. `POST /api/auth` with `{"username": "...", "password": "..."}` returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days).
+1. `POST /api/auth` with `{"username": "...", "password": "..."}` (the username or the email) returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days).
 2. Send the JWT on every request: `Authorization: Bearer <token>`. In the documentation page, use the **Authorize** button.
 3. Before it expires, `POST /api/token/refresh` with `{"refresh_token": "..."}` returns a new pair. Each refresh token works once; presenting one that was already used signs that session out, as it may have been stolen. That includes two requests sending the same token at once: only one gets a new pair, so a client running in several places at the same time (e.g. browser tabs) has to let only one of them refresh.
    One exception covers a refresh whose response never arrived (the page was reloaded or closed, the network dropped): for 5 minutes (`REFRESH_TOKEN_GRACE_SECONDS`), the spent token still works as long as the one that replaced it hasn't been used, and returns a new pair. Theft is still detected: whoever holds the replaced pair is signed out as soon as they use it.
@@ -156,7 +161,16 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `POST /api/auth` | A JWT and a refresh token |
 | `POST /api/token/refresh` | A new JWT and refresh token |
 | `POST /api/logout` | Invalidates a refresh token (signs that session out) |
-| `GET /api/me` | The authenticated account |
+| `GET /api/setup` | Whether the server still needs its first account (public) |
+| `POST /api/setup` | Creates the first account, the administrator, and signs it in (public; 409 once there is an account) |
+| `GET /api/me` | The authenticated account: `id`, `username`, `email`, `name`, `admin`, `avatarUrl` |
+| `PATCH /api/me` | Changes your `name`, `username` or `email` |
+| `POST /api/me/password` | Changes your password (`currentPassword`, `newPassword`): signs out your other devices, returns a new token pair |
+| `POST`, `DELETE /api/me/avatar` | Sets (`multipart/form-data`, field `file`) or removes your profile picture |
+| `GET /api/users/{id}/avatar` | A profile picture. Use the account's `avatarUrl` |
+| `GET`, `POST /api/users` | Every account; creates one: `{"email", "name", "password", "admin"?}` (administrators) |
+| `GET`, `PATCH`, `DELETE /api/users/{id}` | One account; `PATCH` changes `name`, `username`, `email`, `admin` or `password` (administrators) |
+| `POST`, `DELETE /api/users/{id}/avatar` | Sets or removes the picture of any account (administrators) |
 | `GET /api/artists` | Artists, by name. Filter: `name` |
 | `GET /api/albums` | Albums in the order of the library: album artists by name, then each one's albums by year (undated ones last) and title. Filters: `artist` (IRI: one artist's albums, by year and title), `title`, `year` |
 | `GET /api/tracks` | Tracks in the order of the library: album artists by name, their albums by year and title, then disc and track number. Filters: `album` (IRI), `artist` (IRI of the track artist), `albumArtist` (IRI: every track of an artist's own albums), `title`, `genre` |
@@ -256,21 +270,20 @@ git clone https://github.com/Evilchuck666/echora-web.git
 cd Echora
 ```
 
-Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images and create your account:
+Copy `prod.env.example` to `prod.env`, set your music folder, domain and secrets, then build and start the production images and scan your library:
 
 ```sh
 cp prod.env.example prod.env
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml build --pull
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml up --wait
-docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:user:create <username> --admin
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:library:scan
 ```
 
-`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically. Open `https://your-domain/` and sign in.
+`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically. Open `https://your-domain/` and create your account: the first one becomes the administrator. Do it right away, as until then whoever reaches the server first could; or create it from the console before opening the site, with `... exec php bin/console app:user:create <email> --admin`.
 
 To update, pull both repositories and run the `build` and `up` commands again: the image is rebuilt with the new API and web client, and migrations run on start.
 
-After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once).
+After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once). If the account has no profile picture, it gives it one for a moment and removes it.
 
 Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one.
 

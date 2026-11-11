@@ -125,9 +125,9 @@ jobs:
       - name: Start services
         run: docker compose up --wait --no-build
 
-      # The command asks for the password in a terminal: give it one.
+      # The command asks for the password in a terminal: give it one. Its username, "smoke", comes from the email.
       - name: Create an account
-        run: printf 'smoke-test-password\nsmoke-test-password\n' | script -qec "docker compose exec php bin/console app:user:create smoke" /dev/null
+        run: printf 'smoke-test-password\nsmoke-test-password\n' | script -qec "docker compose exec php bin/console app:user:create smoke@example.com" /dev/null
 
       - name: Scan the test library
         run: docker compose exec -T php bin/console app:library:scan --offline
