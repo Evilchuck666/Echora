@@ -20,13 +20,13 @@ final readonly class UserListCommand
         $users = $this->users->findBy([], ['username' => 'ASC']);
 
         if ([] === $users) {
-            $io->note('There are no accounts yet. Create one with app:user:create <username> --admin');
+            $io->note('There are no accounts yet. Open the web client to create the administrator, or run app:user:create <email> --admin');
 
             return Command::SUCCESS;
         }
 
-        $io->table(['Username', 'Role'], array_map(
-            static fn (User $user): array => [$user->getUsername(), $user->isAdmin() ? 'administrator' : 'user'],
+        $io->table(['Username', 'Email', 'Name', 'Role'], array_map(
+            static fn (User $user): array => [$user->getUsername(), $user->getEmail() ?? '-', $user->getName(), $user->isAdmin() ? 'administrator' : 'user'],
             $users,
         ));
 

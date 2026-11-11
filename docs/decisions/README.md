@@ -23,6 +23,7 @@ deleted.
 | [0010](0010-tracks-keep-their-identity-when-files-move.md) | Tracks keep their identity when files are moved or renamed (audio hash) | 2026-11-10 | Accepted |
 | [0011](0011-opus-conversion-ahead-of-time.md) | Converting to Opus ahead of time, for the tracks a client is about to play, in background workers | 2026-11-10 | Partly superseded by 0012 |
 | [0012](0012-opus-conversion-lists-per-device.md) | One list per device for converting ahead of time, and lists that take turns | 2026-11-10 | Accepted |
+| [0013](0013-accounts-managed-through-the-api.md) | Accounts managed through the API (like Immich): the first one becomes the administrator; emails, names and pictures | 2026-11-11 | Accepted |
 
 Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; its
 README section and CLAUDE.md describe it.

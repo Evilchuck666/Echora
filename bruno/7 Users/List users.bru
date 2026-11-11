@@ -1,0 +1,19 @@
+meta {
+  name: List users
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/users
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("lists the accounts by username", function () {
+    expect(res.status).to.equal(200);
+    const names = res.body.member.map((user) => user.username);
+    expect(names).to.deep.equal([...names].sort());
+  });
+}

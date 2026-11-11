@@ -12,10 +12,10 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  */
 trait CreatesUsers
 {
-    private static function createUser(string $username = 'listener', string $password = 'listener-pass', bool $admin = false): User
+    private static function createUser(string $username = 'listener', string $password = 'listener-pass', bool $admin = false, ?string $email = null): User
     {
         $container = self::getContainer();
-        $user = new User($username);
+        $user = new User($username, $email);
         $user->setAdmin($admin);
         $user->setPassword($container->get(UserPasswordHasherInterface::class)->hashPassword($user, $password));
 

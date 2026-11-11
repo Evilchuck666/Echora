@@ -60,6 +60,26 @@ final readonly class Thumbnails
     }
 
     /**
+     * Absolute path of a thumbnail made by of(), from its file name, if it is still there.
+     */
+    public function file(string $fileName): ?string
+    {
+        $file = $this->directory.'/'.basename($fileName);
+
+        return is_file($file) ? $file : null;
+    }
+
+    /**
+     * Removes a thumbnail made by of(), from its file name.
+     */
+    public function remove(?string $fileName): void
+    {
+        if (null !== $fileName) {
+            $this->filesystem->remove($this->directory.'/'.basename($fileName));
+        }
+    }
+
+    /**
      * @throws UnreadableImage
      */
     private function resize(string $source): string

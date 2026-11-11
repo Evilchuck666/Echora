@@ -2,9 +2,8 @@
 
 namespace App\Command;
 
-use App\Entity\RefreshToken;
 use App\Repository\UserRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Security\UserAccounts;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -15,31 +14,28 @@ final readonly class UserDeleteCommand
 {
     public function __construct(
         private UserRepository $users,
-        private EntityManagerInterface $entityManager,
+        private UserAccounts $accounts,
     ) {
     }
 
-    public function __invoke(SymfonyStyle $io, #[Argument('Username')] string $username): int
+    public function __invoke(SymfonyStyle $io, #[Argument('Username or email')] string $account): int
     {
-        $user = $this->users->findOneBy(['username' => $username]);
+        $user = $this->users->loadUserByIdentifier($account);
         if (null === $user) {
-            $io->error(\sprintf('There is no account named "%s".', $username));
+            $io->error(\sprintf('There is no account "%s".', $account));
 
             return Command::FAILURE;
         }
 
+        $username = $user->getUsername();
         if (!$io->confirm(\sprintf('Delete the account "%s"?', $username), false)) {
             $io->note('Nothing was deleted.');
 
             return Command::SUCCESS;
         }
 
-        $this->entityManager
-            ->createQuery(\sprintf('DELETE FROM %s r WHERE r.username = :username', RefreshToken::class))
-            ->setParameter('username', $username)
-            ->execute();
-        $this->entityManager->remove($user);
-        $this->entityManager->flush();
+        // With its playlists, favourites, picture and sessions.
+        $this->accounts->delete($user);
 
         $io->success(\sprintf('Account "%s" deleted.', $username));
 

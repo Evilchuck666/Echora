@@ -1,0 +1,17 @@
+meta {
+  name: Remove my picture
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/me/avatar
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("removes the profile picture", function () {
+    expect(res.status).to.equal(204);
+  });
+}

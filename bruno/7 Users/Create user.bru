@@ -1,0 +1,37 @@
+meta {
+  name: Create user
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "bruno-{{$timestamp}}@example.com",
+    "name": "Bruno Test",
+    "password": "bruno-test-password",
+    "admin": false
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("userId", res.body.id);
+  }
+}
+
+tests {
+  test("creates the account, its username made from the email", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.username).to.match(/^bruno-\d+/);
+  });
+}
+
+docs {
+  Creates an account with an email, a name and a password (`admin` optional). Its username is made from the email, with a number added if it is taken. A taken email is a 422.
+}

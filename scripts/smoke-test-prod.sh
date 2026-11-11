@@ -7,7 +7,8 @@
 #
 #   scripts/smoke-test-prod.sh https://music.example.com <username> <password>
 #
-# The account needs a scanned library with at least one track, one album cover and one artist image.
+# The account needs a scanned library with at least one track, one album cover and one artist image. The username may
+# be the email. Its profile picture is left alone; one is set for a moment only if it has none.
 # SMOKE_INSECURE=1 accepts a certificate the system doesn't trust (Caddy's local authority, e.g. in CI).
 set -euo pipefail
 
@@ -69,7 +70,31 @@ TOKEN=$(json 'data["token"]')
 REFRESH=$(json 'data["refresh_token"]')
 AUTH=(-H "Authorization: Bearer $TOKEN" -H "Accept: application/json")
 request "${AUTH[@]}" "$BASE/api/me"
-check "the JWT works" '[ "$(status)" = 200 ] && [ "$(json "data[\"username\"]")" = "$USERNAME" ]'
+# The account signs in with its username or its email.
+check "the JWT works" '[ "$(status)" = 200 ] && { [ "$(json "data[\"username\"]")" = "$USERNAME" ] || [ "$(json "data.get(\"email\")")" = "$USERNAME" ]; }'
+
+echo "Accounts"
+request -H "Accept: application/json" "$BASE/api/setup"
+check "setup is closed once the server has an account" '[ "$(status)" = 200 ] && [ "$(json "str(data[\"required\"])")" = False ]'
+request -X POST -H "Content-Type: application/json" -d '{"email": "intruder@example.com", "name": "Intruder", "password": "intruder-password"}' "$BASE/api/setup"
+check "nobody else can set it up" '[ "$(status)" = 409 ]'
+request "${AUTH[@]}" "$BASE/api/me"
+AVATAR=$(json 'data.get("avatarUrl")')
+if [ -z "$AVATAR" ]; then
+    # The account has no picture: give it one for a moment (a 1×1 PNG), then remove it.
+    python3 -c 'import base64, sys; open(sys.argv[1], "wb").write(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="))' "$WORK/avatar.png"
+    request "${AUTH[@]}" -F "file=@$WORK/avatar.png;type=image/png" "$BASE/api/me/avatar"
+    check "a profile picture is uploaded (written to the media volume)" '[ "$(status)" = 200 ] && [ -n "$(json "data[\"avatarUrl\"]")" ]'
+    UPLOADED=$(json 'data["avatarUrl"]')
+    request "$UPLOADED"
+    check "the profile picture, without the JWT" '[ "$(status)" = 200 ] && [ "$(header Content-Type)" = image/jpeg ]'
+    request "${AUTH[@]}" -X DELETE "$BASE/api/me/avatar"
+    check "the profile picture is removed again" '[ "$(status)" = 204 ]'
+else
+    # The account's own picture stays as it is.
+    request "$AVATAR"
+    check "the profile picture, without the JWT" '[ "$(status)" = 200 ] && [ "$(header Content-Type)" = image/jpeg ]'
+fi
 
 echo "Media (sent by Caddy)"
 request "${AUTH[@]}" "$BASE/api/tracks"

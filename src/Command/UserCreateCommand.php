@@ -2,24 +2,20 @@
 
 namespace App\Command;
 
-use App\Entity\User;
-use App\Repository\UserRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Security\UserAccounts;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Validator\Exception\ValidationFailedException;
 
 #[AsCommand(name: 'app:user:create', description: 'Creates an account; asks for its password')]
 final readonly class UserCreateCommand
 {
     public function __construct(
-        private UserRepository $users,
-        private EntityManagerInterface $entityManager,
-        private UserPasswordHasherInterface $passwordHasher,
+        private UserAccounts $accounts,
         private PasswordPrompt $passwordPrompt,
     ) {
     }
@@ -27,36 +23,29 @@ final readonly class UserCreateCommand
     public function __invoke(
         InputInterface $input,
         SymfonyStyle $io,
-        #[Argument('Username: 3 to 32 letters, digits, dots, dashes or underscores')]
-        string $username,
+        #[Argument('Email: the account signs in with it, or with the username made from it')]
+        string $email,
+        #[Option('Name shown to others (the username by default)')]
+        ?string $name = null,
         #[Option('Let the account manage the server')]
         bool $admin = false,
     ): int {
-        if (null !== $this->users->findOneBy(['username' => $username])) {
-            $io->error(\sprintf('The username "%s" is already taken.', $username));
-
-            return Command::FAILURE;
-        }
-
-        try {
-            $user = new User($username);
-        } catch (\InvalidArgumentException $e) {
-            $io->error($e->getMessage());
-
-            return Command::INVALID;
-        }
-
         $password = $this->passwordPrompt->ask($input, $io);
         if (null === $password) {
             return Command::FAILURE;
         }
 
-        $user->setAdmin($admin);
-        $user->setPassword($this->passwordHasher->hashPassword($user, $password));
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
+        try {
+            $user = $this->accounts->create($email, $name, $password, $admin);
+        } catch (ValidationFailedException $e) {
+            foreach ($e->getViolations() as $violation) {
+                $io->error(\sprintf('%s: %s', $violation->getPropertyPath(), $violation->getMessage()));
+            }
 
-        $io->success(\sprintf('%s "%s" created.', $admin ? 'Administrator' : 'User', $username));
+            return Command::INVALID;
+        }
+
+        $io->success(\sprintf('%s "%s" created: signs in with "%s" or "%s".', $admin ? 'Administrator' : 'User', $user->getName(), $user->getEmail(), $user->getUsername()));
 
         return Command::SUCCESS;
     }

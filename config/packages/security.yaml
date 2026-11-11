@@ -4,10 +4,11 @@ security:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
     providers:
+        # App\Repository\UserRepository::loadUserByIdentifier(): the id (what JWTs and refresh tokens hold), the email
+        # or the username (what people sign in with).
         app_user_provider:
             entity:
                 class: App\Entity\User
-                property: username
 
     role_hierarchy:
         ROLE_ADMIN: ROLE_USER
@@ -23,7 +24,7 @@ security:
             provider: app_user_provider
             # Requests without credentials get a 401 JSON response from the JWT authenticator.
             entry_point: jwt
-            # POST /api/auth {"username": ..., "password": ...} → {"token": ..., "refresh_token": ...}
+            # POST /api/auth {"username": <username or email>, "password": ...} → {"token": ..., "refresh_token": ...}
             json_login:
                 check_path: api_auth
                 username_path: username
@@ -48,9 +49,12 @@ security:
         - { path: '^/api$', roles: PUBLIC_ACCESS }
         - { path: '^/api/(docs|contexts)(/|\.|$)', roles: PUBLIC_ACCESS }
         - { path: '^/api/(auth|token/refresh|logout)$', roles: PUBLIC_ACCESS }
+        # Until the server has an account, whoever comes first creates the administrator (App\ApiResource\Setup).
+        - { path: '^/api/setup$', roles: PUBLIC_ACCESS }
         # Checked by LibraryFiles::denyUnlessAuthorized(): a JWT or a signed URL (players and <img> can't send headers).
         - { path: '^/api/tracks/[^/]+/stream(/opus)?$', roles: PUBLIC_ACCESS }
         - { path: '^/api/(albums|artists)/[^/]+/cover$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/users/[^/]+/avatar$', methods: [GET, HEAD], roles: PUBLIC_ACCESS }
         - { path: '^/api', roles: ROLE_USER }
 
 when@test:

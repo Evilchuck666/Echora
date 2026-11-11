@@ -5,14 +5,15 @@ namespace App\Serializer;
 use App\Entity\Album;
 use App\Entity\Artist;
 use App\Entity\Track;
+use App\Entity\User;
 use App\Library\SignedUrlGenerator;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 /**
- * Fills Track::$streamUrl and Track::$opusStreamUrl, Album::$coverUrl and Artist::$coverUrl with freshly signed URLs
- * right before they are serialized, including an album embedded in a track.
+ * Fills Track::$streamUrl and Track::$opusStreamUrl, Album::$coverUrl, Artist::$coverUrl and User::$avatarUrl with
+ * freshly signed URLs right before they are serialized, including an album embedded in a track.
  */
 final class SignedUrlNormalizer implements NormalizerInterface, NormalizerAwareInterface
 {
@@ -36,6 +37,8 @@ final class SignedUrlNormalizer implements NormalizerInterface, NormalizerAwareI
             $data->setCoverUrl($this->signedUrls->cover($data));
         } elseif ($data instanceof Artist) {
             $data->setCoverUrl($this->signedUrls->artistCover($data));
+        } elseif ($data instanceof User) {
+            $data->setAvatarUrl($this->signedUrls->avatar($data));
         }
 
         \assert(\is_object($data));
@@ -49,11 +52,11 @@ final class SignedUrlNormalizer implements NormalizerInterface, NormalizerAwareI
      */
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return ($data instanceof Track || $data instanceof Album || $data instanceof Artist) && !isset($context[self::ALREADY_CALLED.$data::class]);
+        return ($data instanceof Track || $data instanceof Album || $data instanceof Artist || $data instanceof User) && !isset($context[self::ALREADY_CALLED.$data::class]);
     }
 
     public function getSupportedTypes(?string $format): array
     {
-        return [Track::class => false, Album::class => false, Artist::class => false];
+        return [Track::class => false, Album::class => false, Artist::class => false, User::class => false];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Library;
 use App\Entity\Album;
 use App\Entity\Artist;
 use App\Entity\Track;
+use App\Entity\User;
 use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -77,6 +78,22 @@ final readonly class SignedUrlGenerator
         }
 
         return $this->sign('artist_cover', $artist->getId()->toRfc4122(), self::coverExpiration());
+    }
+
+    /**
+     * Expires like covers. The file name (which changes with the picture) is part of the URL, so a new picture gets a
+     * new URL instead of the one browsers keep for a day.
+     */
+    public function avatar(User $user): ?string
+    {
+        $avatar = $user->getAvatar();
+        if (null === $avatar) {
+            return null;
+        }
+
+        $url = $this->urlGenerator->generate('user_avatar', ['id' => $user->getId()->toRfc4122(), 'v' => pathinfo($avatar, \PATHINFO_FILENAME)], UrlGeneratorInterface::ABSOLUTE_URL);
+
+        return $this->uriSigner->sign($url, self::coverExpiration());
     }
 
     public static function coverExpiration(): \DateTimeImmutable

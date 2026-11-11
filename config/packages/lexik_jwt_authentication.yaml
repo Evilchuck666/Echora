@@ -4,6 +4,9 @@ lexik_jwt_authentication:
     pass_phrase: '%env(JWT_PASSPHRASE)%'
     # Short-lived on purpose: clients renew it with their refresh token (POST /api/token/refresh).
     token_ttl: 3600
+    # The account's id (User::getUserIdentifier()), in the standard subject claim: never the username, which can
+    # change. User has no "sub" property, so the bundle falls back to getUserIdentifier().
+    user_id_claim: sub
     api_platform:
         check_path: /api/auth
         username_path: username
