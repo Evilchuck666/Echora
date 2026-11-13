@@ -37,9 +37,11 @@ final class HistoryTest extends ApiTestCase
 
     public function testPlaysAreRecordedAndTheRecentlyPlayedTracksComeLatestFirst(): void
     {
+        // One instant, computed once: comparing with a second "an hour ago" fails when the clock turns an hour in between.
+        $lastPlay = new \DateTimeImmutable('-1 hour');
         $this->play('Opening', '-3 hours');
         $this->play('Second Song', '-2 hours');
-        $this->play('Opening', '-1 hour');
+        $this->play('Opening', $lastPlay->format(\DATE_ATOM));
         self::assertResponseStatusCodeSame(204);
 
         $recent = $this->list('/api/me/recent-tracks');
@@ -47,7 +49,7 @@ final class HistoryTest extends ApiTestCase
         self::assertSame(['Opening', 'Second Song'], $this->titles($recent), 'Each track once, the latest played first.');
         self::assertSame([2, 1], array_column($recent, 'playCount'));
         self::assertIsString($recent[0]['lastPlayedAt']);
-        self::assertSame((new \DateTimeImmutable('-1 hour'))->format('Y-m-d\TH'), substr($recent[0]['lastPlayedAt'], 0, 13));
+        self::assertSame($lastPlay->getTimestamp(), (new \DateTimeImmutable($recent[0]['lastPlayedAt']))->getTimestamp());
     }
 
     public function testTracksComeWholeLikeTheTrackList(): void
