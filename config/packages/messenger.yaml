@@ -12,8 +12,21 @@ framework:
                 retry_strategy:
                     max_retries: 0
 
+            # Library scans asked for through the API (App\Message\ScanLibrary, POST /api/library/scan): one worker of
+            # their own (docker-entrypoint), so that a long scan never holds up the Opus conversions.
+            library:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: library
+                    # A big library can take more than the default hour: a scan still running is not lost.
+                    redeliver_timeout: 86400
+                # The scan records its own failure (App\Entity\LibraryScan): never retried.
+                retry_strategy:
+                    max_retries: 0
+
         routing:
             App\Message\TranscodeTracks: transcodes
+            App\Message\ScanLibrary: library
 
 when@test:
     framework:
@@ -21,3 +34,4 @@ when@test:
             transports:
                 # Tests take the messages from the transport and call the handler themselves.
                 transcodes: 'in-memory://'
+                library: 'in-memory://'

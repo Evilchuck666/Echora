@@ -57,14 +57,22 @@ final readonly class ArtistImages
      * @param string $root     The music library folder
      * @param bool   $download Whether to look missing images up on TheAudioDB
      */
-    public function update(string $root, bool $download, ScanReport $report): void
+    /**
+     * @param (callable(ScanPhase, int, int): void)|null $progress Told how many artists are done, out of how many
+     */
+    public function update(string $root, bool $download, ScanReport $report, ?callable $progress = null): void
     {
         $albumTracks = $this->artists->findAlbumTrackPaths();
         $lookUpBefore = $this->clock->now()->modify('-'.self::LOOK_UP_AGAIN_AFTER);
         $download = $download && $this->theAudioDb->isEnabled();
         $pending = 0;
 
-        foreach ($this->artists->findAll() as $artist) {
+        $artists = $this->artists->findAll();
+        $total = \count($artists);
+        foreach ($artists as $done => $artist) {
+            if (null !== $progress) {
+                $progress(ScanPhase::ArtistImages, $done, $total);
+            }
             $folder = self::artistFolder($albumTracks[$artist->getId()->toRfc4122()] ?? []);
             $image = null === $folder ? null : $this->finder->find($root.'/'.$folder, CoverFinder::ARTIST_NAMES);
             $imagePath = null === $image ? null : $folder.'/'.$image;
@@ -96,6 +104,9 @@ final readonly class ArtistImages
         }
 
         $this->entityManager->flush();
+        if (null !== $progress) {
+            $progress(ScanPhase::ArtistImages, $total, $total);
+        }
         $this->removeOrphanDownloads();
     }
 

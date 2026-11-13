@@ -25,6 +25,7 @@ deleted.
 | [0012](0012-opus-conversion-lists-per-device.md) | One list per device for converting ahead of time, and lists that take turns | 2026-11-10 | Accepted |
 | [0013](0013-accounts-managed-through-the-api.md) | Accounts managed through the API (like Immich): the first one becomes the administrator; emails, names and pictures | 2026-11-11 | Accepted |
 | [0014](0014-sign-in-throttling.md) | Sign-in throttling (429 with Retry-After), in a firewall of its own; wrong current passwords limited too | 2026-11-13 | Accepted |
+| [0015](0015-library-scans-through-the-api.md) | Library scans through the API (a worker of their own), recorded with their reports, and every night | 2026-11-13 | Accepted |
 
 Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; its
 README section and CLAUDE.md describe it.

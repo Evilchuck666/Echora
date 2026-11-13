@@ -51,14 +51,18 @@ final class LibraryScanner
     }
 
     /**
-     * @param string|null $directory Folder to scan; defaults to MUSIC_LIBRARY_PATH
-     * @param bool        $full      Read every file again, even unchanged ones (e.g. after an update that reads more tags)
-     * @param bool        $download  Look up the albums without a cover and the artists without an image on TheAudioDB
+     * @param string|null                                $directory Folder to scan; defaults to MUSIC_LIBRARY_PATH
+     * @param bool                                       $full      Read every file again, even unchanged ones (e.g. after an update that reads more tags)
+     * @param bool                                       $download  Look up the albums without a cover and the artists without an image on TheAudioDB
+     * @param (callable(ScanPhase, int, int): void)|null $progress  Told the phase, and how many of its items are done
+     *                                                              out of how many, as the scan goes
      *
      * @throws LibraryUnavailable
      */
-    public function scan(?string $directory = null, bool $full = false, bool $download = true): ScanReport
+    public function scan(?string $directory = null, bool $full = false, bool $download = true, ?callable $progress = null): ScanReport
     {
+        $progress ??= static function (ScanPhase $phase, int $done, int $total): void {};
+        $progress(ScanPhase::Listing, 0, 0);
         $root = $directory ?? $this->musicLibraryPath;
         $known = $this->tracks->findFileStates();
 
@@ -87,8 +91,11 @@ final class LibraryScanner
         $vanished = $this->tracks->findByAudioHashAmongPaths(array_map(strval(...), array_keys(array_diff_key($known, $seen))));
         $movedFrom = [];
         $pending = 0;
+        $total = \count($seen);
+        $done = 0;
 
         foreach ($seen as $path => $file) {
+            $progress(ScanPhase::Files, $done++, $total);
             $path = (string) $path;
             $state = $known[$path] ?? null;
 
@@ -123,6 +130,7 @@ final class LibraryScanner
         }
 
         $this->flush();
+        $progress(ScanPhase::Files, $total, $total);
 
         $removed = array_map(strval(...), array_keys(array_diff_key($known, $seen, $movedFrom)));
         // Their playlist items go with them (ON DELETE CASCADE): those playlists changed.
@@ -130,8 +138,8 @@ final class LibraryScanner
         $report->removed = $this->tracks->deleteByPaths($removed);
         $this->albums->deleteWithoutTracks();
         $this->artists->deleteWithoutAlbumsOrTracks();
-        $this->albumCovers->update($root, $download, $report);
-        $this->artistImages->update($root, $download, $report);
+        $this->albumCovers->update($root, $download, $report, $progress);
+        $this->artistImages->update($root, $download, $report, $progress);
 
         return $report;
     }

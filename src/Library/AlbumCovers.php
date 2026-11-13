@@ -50,14 +50,22 @@ final readonly class AlbumCovers
      * @param string $root     The music library folder
      * @param bool   $download Whether to look missing covers up on TheAudioDB
      */
-    public function update(string $root, bool $download, ScanReport $report): void
+    /**
+     * @param (callable(ScanPhase, int, int): void)|null $progress Told how many albums are done, out of how many
+     */
+    public function update(string $root, bool $download, ScanReport $report, ?callable $progress = null): void
     {
         $lookUpBefore = $this->clock->now()->modify('-'.self::LOOK_UP_AGAIN_AFTER);
         $download = $download && $this->theAudioDb->isEnabled();
         $pending = 0;
 
         // Albums are read as plain rows, and only loaded when something changes, so large libraries stay cheap.
-        foreach ($this->albums->findCoverStates() as $state) {
+        $states = $this->albums->findCoverStates();
+        $total = \count($states);
+        foreach ($states as $done => $state) {
+            if (null !== $progress) {
+                $progress(ScanPhase::Covers, (int) $done, $total);
+            }
             $coverPath = $this->localCover($root, $state['trackPath']);
             $downloaded = $state['downloadedCover'];
             // A local cover wins; a downloaded file that went missing (e.g. a lost volume) is fetched again.
@@ -97,6 +105,9 @@ final readonly class AlbumCovers
         }
 
         $this->flush();
+        if (null !== $progress) {
+            $progress(ScanPhase::Covers, $total, $total);
+        }
         $this->removeOrphanDownloads();
     }
 

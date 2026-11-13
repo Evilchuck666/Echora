@@ -2,6 +2,10 @@
 # Times are UTC. Copied into the image: rebuild it after a change (docker compose up --build --wait).
 # Syntax: https://github.com/aptible/supercronic#crontab-format
 
+# Every night at 03:00: scan the music library, so that new music shows up on its own (skipped when a scan is already
+# queued or running). Its report is in GET /api/library/scan, like the scans administrators ask for.
+0 3 * * * php /app/bin/console app:library:scan --scheduled --no-interaction
+
 # Every Sunday at 04:00: delete the Opus versions of tracks that nobody played in the last 30 days.
 0 4 * * 0 php /app/bin/console app:transcodes:prune --no-interaction
 

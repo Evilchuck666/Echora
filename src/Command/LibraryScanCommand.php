@@ -2,8 +2,11 @@
 
 namespace App\Command;
 
-use App\Library\LibraryScanner;
-use App\Library\LibraryUnavailable;
+use App\Entity\LibraryScan;
+use App\Library\LibraryScans;
+use App\Library\ScanAlreadyRequested;
+use App\Library\ScanStatus;
+use App\Library\ScanTrigger;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -16,7 +19,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final readonly class LibraryScanCommand
 {
-    public function __construct(private LibraryScanner $scanner)
+    public function __construct(private LibraryScans $scans)
     {
     }
 
@@ -28,43 +31,56 @@ final readonly class LibraryScanCommand
         bool $full = false,
         #[Option('Don\'t look up album covers and artist images on TheAudioDB (the album and artist folders are still searched)')]
         bool $offline = false,
+        #[Option('Run by the nightly job (frankenphp/crontab): a scan already queued or running is not an error')]
+        bool $scheduled = false,
     ): int {
         try {
-            $report = $this->scanner->scan($directory, $full, !$offline);
-        } catch (LibraryUnavailable $e) {
-            $io->error($e->getMessage());
+            $scan = $this->scans->runNow($scheduled ? ScanTrigger::Schedule : ScanTrigger::Console, $full, !$offline, $directory);
+        } catch (ScanAlreadyRequested $e) {
+            $io->warning($e->getMessage());
+
+            return $scheduled ? Command::SUCCESS : Command::FAILURE;
+        }
+
+        if (ScanStatus::Finished !== $scan->getStatus()) {
+            $io->error($scan->getError() ?? 'The scan did not finish.');
 
             return Command::FAILURE;
         }
 
-        $io->definitionList(
-            ['Added' => $report->added],
-            ['Moved or renamed' => $report->moved],
-            ['Updated' => $report->updated],
-            ['Unchanged' => $report->unchanged],
-            ['Removed' => $report->removed],
-            ['Covers updated' => $report->coversUpdated],
-            ['Covers downloaded' => $report->coversDownloaded],
-            ['Artist images updated' => $report->artistImagesUpdated],
-            ['Artist images downloaded' => $report->artistImagesDownloaded],
-            ['Failed' => \count($report->failed)],
-        );
-
-        if ([] !== $report->failed) {
-            $io->warning('Some files could not be read and were skipped:');
-            $io->listing(array_map(
-                static fn (string $path, string $error): string => \sprintf('%s: %s', $path, $error),
-                array_keys($report->failed),
-                $report->failed,
-            ));
-        }
-
-        if (null !== $report->theAudioDbFailure) {
-            $io->warning(\sprintf('%s The remaining album covers and artist images will be looked up on the next scan.', $report->theAudioDbFailure));
-        }
-
+        $this->report($io, $scan);
         $io->success('The library is up to date.');
 
         return Command::SUCCESS;
+    }
+
+    private function report(SymfonyStyle $io, LibraryScan $scan): void
+    {
+        $io->definitionList(
+            ['Added' => $scan->getAdded()],
+            ['Moved or renamed' => $scan->getMoved()],
+            ['Updated' => $scan->getUpdated()],
+            ['Unchanged' => $scan->getUnchanged()],
+            ['Removed' => $scan->getRemoved()],
+            ['Covers updated' => $scan->getCoversUpdated()],
+            ['Covers downloaded' => $scan->getCoversDownloaded()],
+            ['Artist images updated' => $scan->getArtistImagesUpdated()],
+            ['Artist images downloaded' => $scan->getArtistImagesDownloaded()],
+            ['Failed' => $scan->getFailed()],
+        );
+
+        $failures = $scan->getFailures() ?? [];
+        if ([] !== $failures) {
+            $io->warning('Some files could not be read and were skipped:');
+            $io->listing(array_map(
+                static fn (string $path, string $error): string => \sprintf('%s: %s', $path, $error),
+                array_keys($failures),
+                $failures,
+            ));
+        }
+
+        if (null !== $scan->getTheAudioDbFailure()) {
+            $io->warning(\sprintf('%s The remaining album covers and artist images will be looked up on the next scan.', $scan->getTheAudioDbFailure()));
+        }
     }
 }

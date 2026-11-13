@@ -1,0 +1,34 @@
+meta {
+  name: Scan the library
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/library/scan
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "full": false
+  }
+}
+
+tests {
+  test("queues a scan, or says one is already queued or running", function () {
+    expect(res.status).to.be.oneOf([202, 409]);
+    if (res.status === 202) {
+      expect(res.body.status).to.equal("queued");
+    }
+  });
+}
+
+docs {
+  Queues a scan of the music library, run in the background by the library worker (202). `"full": true` reads every file again, even unchanged ones. One scan at a time: 409 while another is queued or running.
+}

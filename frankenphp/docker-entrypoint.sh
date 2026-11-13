@@ -79,4 +79,15 @@ if [ "$1" = 'frankenphp' ]; then
 	esac
 fi
 
+# The library worker (Symfony Messenger, transport "library"): runs the scans that administrators ask for
+# (POST /api/library/scan), one at a time, outside the PHP workers that serve requests and apart from the Opus workers,
+# so that a long scan holds up neither. Restarts every hour, between two scans.
+if [ "$1" = 'frankenphp' ]; then
+	(
+		while true; do
+			php bin/console messenger:consume library --time-limit=3600 --no-interaction || sleep 5
+		done
+	) &
+fi
+
 exec docker-php-entrypoint "$@"

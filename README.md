@@ -76,11 +76,13 @@ docker compose exec php bin/console app:library:scan
 
 ## 🎵 Your music library
 
-Import or update the library after adding, changing or deleting files:
+The library is scanned every night at 03:00 (UTC), so files you add, change or delete show up on their own. To scan at once, an administrator asks for it from a client (`POST /api/library/scan`, run in the background, one scan at a time), or from the console:
 
 ```sh
 docker compose exec php bin/console app:library:scan
 ```
+
+Every scan, whoever started it, is recorded with its report (added, moved, updated, unchanged, removed and unreadable files): `GET /api/library/scan` shows the latest one, `GET /api/library/scans` all of them, to administrators. While a scan runs, it shows how far it got: its `phase` (`listing` the files, reading the `files`, the album `covers`, then the `artist_images`, which can be slow as TheAudioDB allows 30 lookups a minute) and how many of the phase's files, albums or artists are done (`phaseDone` out of `phaseTotal`).
 
 Echora reads FLAC and MP3 files in any folder layout, and uses these tags:
 
@@ -164,6 +166,9 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `GET /api/setup` | Whether the server still needs its first account (public) |
 | `POST /api/setup` | Creates the first account, the administrator, and signs it in (public; 409 once there is an account) |
 | `GET /api/me` | The authenticated account: `id`, `username`, `email`, `name`, `admin`, `avatarUrl` |
+| `POST /api/library/scan` | Scans the music library in the background: `{}`, or `{"full": true}` (202; 409 while a scan is queued or running; administrators) |
+| `GET /api/library/scan` | The latest scan: `status` (`queued`, `running`, `finished`, `failed`), its progress while running (`phase`, `phaseDone`, `phaseTotal`) and its report (administrators) |
+| `GET /api/library/scans` | Every scan, the latest first (administrators) |
 | `PATCH /api/me` | Changes your `name`, `username` or `email` |
 | `POST /api/me/password` | Changes your password (`currentPassword`, `newPassword`): signs out your other devices, returns a new token pair |
 | `POST`, `DELETE /api/me/avatar` | Sets (`multipart/form-data`, field `file`) or removes your profile picture |
@@ -283,16 +288,17 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php
 
 To update, pull both repositories and run the `build` and `up` commands again: the image is rebuilt with the new API and web client, and migrations run on start.
 
-After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once, and makes 6 failed sign-ins with a made-up account to check the throttling, which leaves the real one alone). If the account has no profile picture, it gives it one for a moment and removes it.
+After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once, runs a quick scan when the account is an administrator, and makes 6 failed sign-ins with a made-up account to check the throttling, which leaves the real one alone). If the account has no profile picture, it gives it one for a moment and removes it.
 
 Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one.
 
-The `php` container runs its own scheduled jobs (`frankenphp/crontab`, with [Supercronic](https://github.com/aptible/supercronic)), so the host needs no cron. Every Sunday (times in UTC):
+The `php` container runs its own scheduled jobs (`frankenphp/crontab`, with [Supercronic](https://github.com/aptible/supercronic)), so the host needs no cron. Times are in UTC:
 
-- at 04:00, `app:transcodes:prune` deletes the Opus versions that nobody played in the last 30 days, and those of tracks no longer in the library;
-- at 04:30, `cache:pool:prune` deletes expired cache entries, such as spent refresh tokens older than 30 days.
+- every night at 03:00, `app:library:scan --scheduled` scans the music library (skipped when a scan is already queued or running);
+- every Sunday at 04:00, `app:transcodes:prune` deletes the Opus versions that nobody played in the last 30 days, and those of tracks no longer in the library;
+- every Sunday at 04:30, `cache:pool:prune` deletes expired cache entries, such as spent refresh tokens older than 30 days.
 
-Their output is in the container's logs (`docker compose ... logs php`), and so is that of the workers that convert tracks to Opus ahead of time (`TRANSCODE_WORKERS` in `prod.env`, 1 by default). Run the jobs by hand at any time with the `docker compose ... exec php bin/console` prefix; `app:transcodes:prune --days=7` keeps only the last week.
+Their output is in the container's logs (`docker compose ... logs php`), and so is that of the background workers: the one that runs the scans asked for through the API, and those that convert tracks to Opus ahead of time (`TRANSCODE_WORKERS` in `prod.env`, 1 by default). Run the jobs by hand at any time with the `docker compose ... exec php bin/console` prefix; `app:transcodes:prune --days=7` keeps only the last week.
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 
@@ -321,7 +327,7 @@ On Linux, files created from inside the container belong to root. Give them back
 ./scripts/fix-permissions.sh
 ```
 
-The Opus workers (`messenger:consume transcodes`) are long-running processes: after changing their code (`TranscodeTracksHandler`, `TranscodeQueue`, `OpusTranscoder`, the `TranscodeTracks` message), run `docker compose restart php` so they start again with it. `messenger:stop-workers` isn't enough: an idle worker only sees it when the next message wakes it up, and handles that message with the old code first. A change to `frankenphp/docker-entrypoint.sh` or `frankenphp/crontab` needs `docker compose up --build --wait`.
+The background workers (`messenger:consume transcodes` and `messenger:consume library`) are long-running processes that keep the classes they loaded: after changing code they run (the Opus conversions: `TranscodeTracksHandler`, `TranscodeQueue`, `OpusTranscoder`, the `TranscodeTracks` message; the scans: `ScanLibraryHandler`, `LibraryScans`, `LibraryScanner` and what it uses), run `docker compose restart php` so they start again with it. `docker compose up --build` doesn't recreate the container when the image didn't change. `messenger:stop-workers` isn't enough: an idle worker only sees it when the next message wakes it up, and handles that message with the old code first. A change to `frankenphp/docker-entrypoint.sh` or `frankenphp/crontab` needs `docker compose up --build --wait`.
 
 To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
 

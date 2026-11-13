@@ -1,0 +1,26 @@
+meta {
+  name: Latest scan
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/library/scan
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("shows the latest scan", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.status).to.be.oneOf(["queued", "running", "finished", "failed"]);
+  });
+}
+
+docs {
+  The latest scan, whoever started it (`trigger`: api, console or schedule). While `running`: `phase` (listing, files, covers, artist_images, in this order), `phaseDone` out of `phaseTotal` (0 while listing), updated every second at most. Once `finished`: `added`, `moved`, `updated`, `unchanged`, `removed` and `failed`, with `failures` (why each skipped file could not be read). Once `failed`: `error`. 404 if the library was never scanned.
+}

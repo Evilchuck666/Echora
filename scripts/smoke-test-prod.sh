@@ -8,7 +8,7 @@
 #   scripts/smoke-test-prod.sh https://music.example.com <username> <password>
 #
 # The account needs a scanned library with at least one track, one album cover and one artist image. The username may
-# be the email. Its profile picture is left alone; one is set for a moment only if it has none.
+# be the email. If the account is an administrator, a (quick) scan of the library is run and followed. Its profile picture is left alone; one is set for a moment only if it has none.
 # SMOKE_INSECURE=1 accepts a certificate the system doesn't trust (Caddy's local authority, e.g. in CI).
 set -euo pipefail
 
@@ -137,6 +137,24 @@ else
     check "a background worker converted it (written to the media volume)" '[ "$(json "\"$FLAC\" in data[\"ready\"]")" = True ]'
     request -H "Range: bytes=0-99" "$OPUS"
     check "a range of the Opus version, without the JWT" '[ "$(status)" = 206 ] && [ "$(wc -c < "$WORK/body")" -eq 100 ] && [[ "$(header Content-Type)" == audio/ogg* ]]'
+fi
+
+echo "Library scan (run by the library worker)"
+request "${AUTH[@]}" "$BASE/api/me"
+if [ "$(json 'data["admin"]')" = True ]; then
+    # A quick scan, like the nightly one: only what changed is read. A scan already running (409) is followed instead.
+    request "${AUTH[@]}" -X POST -H "Content-Type: application/json" -d '{}' "$BASE/api/library/scan"
+    check "a scan is queued at once (or one is already running)" '[ "$(status)" = 202 ] || [ "$(status)" = 409 ]'
+    for _ in $(seq 1 150); do
+        request "${AUTH[@]}" "$BASE/api/library/scan"
+        SCAN=$(json 'data["status"]')
+        { [ "$SCAN" = finished ] || [ "$SCAN" = failed ]; } && break
+        sleep 2
+    done
+    check "the library worker finished it" '[ "$SCAN" = finished ]'
+else
+    request "${AUTH[@]}" "$BASE/api/library/scan"
+    check "only administrators scan the library" '[ "$(status)" = 403 ]'
 fi
 
 echo "Session"
