@@ -46,4 +46,4 @@ Proposed from the Echora repository among the next steps for the API, and chosen
 
 ## Commits
 
-- Not committed yet.
+- `2f0b4f2` feat(history): record plays and list recently and most played tracks
