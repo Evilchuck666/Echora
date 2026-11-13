@@ -2,6 +2,7 @@
 
 namespace App\Tests\Library;
 
+use App\Library\ReplayGain;
 use App\Library\TagReader;
 use App\Library\UnreadableAudioFile;
 use PHPUnit\Framework\TestCase;
@@ -12,6 +13,7 @@ final class TagReaderTest extends TestCase
 
     private const string LIBRARY = __DIR__.'/../Fixtures/music';
     private const string MP3 = self::LIBRARY.'/Test Artist/2022 - Second Album/01 - MP3 Song.mp3';
+    private const string REPLAYGAIN = __DIR__.'/../Fixtures/replaygain';
 
     private ?string $copy = null;
 
@@ -75,6 +77,40 @@ final class TagReaderTest extends TestCase
         self::assertNull($metadata->year);
         self::assertNull($metadata->trackNumber);
         self::assertNull($metadata->lyrics);
+    }
+
+    public function testItReadsReplayGainFromTheVorbisCommentsOfAFlacFile(): void
+    {
+        $metadata = (new TagReader())->read(new \SplFileInfo(self::REPLAYGAIN.'/replaygain.flac'));
+
+        self::assertEquals(new ReplayGain(trackGain: -6.48, trackPeak: 0.988159, albumGain: -5.92, albumPeak: 0.999969), $metadata->replayGain);
+    }
+
+    public function testItReadsReplayGainFromTxxxFramesWhateverTheCaseOfTheirDescription(): void
+    {
+        // Written REPLAYGAIN_TRACK_GAIN, as foobar2000 and Mp3tag do: getID3 alone only knows the lower case.
+        $metadata = (new TagReader())->read(new \SplFileInfo(self::REPLAYGAIN.'/replaygain.mp3'));
+
+        self::assertEquals(new ReplayGain(trackGain: 3.21, trackPeak: 0.501187), $metadata->replayGain);
+    }
+
+    public function testFilesWithoutReplayGainHaveNone(): void
+    {
+        self::assertNull((new TagReader())->read(new \SplFileInfo(self::LIBRARY.'/Test Artist/2020 - First Album/01 - Opening.flac'))->replayGain);
+        self::assertNull((new TagReader())->read(new \SplFileInfo(self::MP3))->replayGain);
+    }
+
+    public function testReplayGainValuesAreReadFromTextAndBrokenOnesIgnored(): void
+    {
+        self::assertSame(-6.48, ReplayGain::gain('-6.48 dB'));
+        self::assertSame(3.21, ReplayGain::gain('+3,21 dB'), 'A decimal comma.');
+        self::assertSame(0.0, ReplayGain::gain(0));
+        self::assertNull(ReplayGain::gain('loud'));
+        self::assertNull(ReplayGain::gain('-99 dB'), 'Out of any sensible range.');
+        self::assertSame(0.988159, ReplayGain::peak('0.988159'));
+        self::assertNull(ReplayGain::peak('0'));
+        self::assertNull(ReplayGain::peak('-1'));
+        self::assertNull(ReplayGain::peak(null));
     }
 
     public function testItRejectsFilesThatAreNotAudio(): void

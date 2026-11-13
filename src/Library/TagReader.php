@@ -63,7 +63,39 @@ final class TagReader
             fileSize: (int) $file->getSize(),
             fileModifiedAt: (int) $file->getMTime(),
             audioHash: $this->audioHash($info, $format, $file->getPathname()),
+            replayGain: $this->replayGain($info),
         );
+    }
+
+    /**
+     * The ReplayGain tags, as getID3 gathers them (Vorbis comments of FLAC files; RVA2 frames and the LAME header of
+     * MP3 files), and the TXXX frames of MP3 files: getID3 only knows their description in lower case, while
+     * foobar2000 and Mp3tag write it in upper case (REPLAYGAIN_TRACK_GAIN).
+     *
+     * @param array<mixed> $info
+     */
+    private function replayGain(array $info): ?ReplayGain
+    {
+        $found = \is_array($info['replay_gain'] ?? null) ? $info['replay_gain'] : [];
+        $track = \is_array($found['track'] ?? null) ? $found['track'] : [];
+        $album = \is_array($found['album'] ?? null) ? $found['album'] : [];
+
+        $frames = [];
+        $id3v2 = \is_array($info['id3v2'] ?? null) ? $info['id3v2'] : [];
+        foreach (\is_array($id3v2['TXXX'] ?? null) ? $id3v2['TXXX'] : [] as $frame) {
+            if (\is_array($frame) && \is_string($frame['description'] ?? null) && \is_string($frame['data'] ?? null)) {
+                $frames[strtolower($frame['description'])] = $frame['data'];
+            }
+        }
+
+        $replayGain = new ReplayGain(
+            trackGain: ReplayGain::gain($track['adjustment'] ?? $frames['replaygain_track_gain'] ?? null),
+            trackPeak: ReplayGain::peak($track['peak'] ?? $frames['replaygain_track_peak'] ?? null),
+            albumGain: ReplayGain::gain($album['adjustment'] ?? $frames['replaygain_album_gain'] ?? null),
+            albumPeak: ReplayGain::peak($album['peak'] ?? $frames['replaygain_album_peak'] ?? null),
+        );
+
+        return $replayGain->isEmpty() ? null : $replayGain;
     }
 
     /**

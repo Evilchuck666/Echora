@@ -27,6 +27,7 @@ deleted.
 | [0014](0014-sign-in-throttling.md) | Sign-in throttling (429 with Retry-After), in a firewall of its own; wrong current passwords limited too | 2026-11-13 | Accepted |
 | [0015](0015-library-scans-through-the-api.md) | Library scans through the API (a worker of their own), recorded with their reports, and every night | 2026-11-13 | Accepted |
 | [0016](0016-listening-history.md) | Listening history: plays (deduplicated, offline-friendly), recently played and most played tracks | 2026-11-13 | Accepted |
+| [0017](0017-replaygain.md) | ReplayGain tags read by the scanner (any-case TXXX too) and given to players per track | 2026-11-13 | Accepted |
 
 Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; its
 README section and CLAUDE.md describe it.

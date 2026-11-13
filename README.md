@@ -96,6 +96,9 @@ Echora reads FLAC and MP3 files in any folder layout, and uses these tags:
 | Track and disc number | `TRACKNUMBER`, `DISCNUMBER` | `TRCK`, `TPOS` | Empty |
 | Genre | `GENRE` | `TCON` | Empty |
 | Lyrics | `LYRICS` / `UNSYNCEDLYRICS` | `USLT` | Empty |
+| ReplayGain | `REPLAYGAIN_TRACK_GAIN`, `REPLAYGAIN_TRACK_PEAK`, `REPLAYGAIN_ALBUM_GAIN`, `REPLAYGAIN_ALBUM_PEAK` | `TXXX` frames with those names (any case), `RVA2`, or the LAME header | Empty |
+
+ReplayGain tags are written by tools such as foobar2000, Mp3tag, `metaflac --add-replay-gain` or `rsgain`: they say how many decibels to apply so that every track (or every album, keeping its own dynamics) plays as loud. Echora reads them and the API gives them to players, which apply them; files without them play as they are. Tracks scanned before Echora read these tags get them with `app:library:scan --full` (or `POST /api/library/scan` with `{"full": true}`), once.
 
 Albums are grouped by album artist and title, so a compilation tagged with `ALBUMARTIST=Various Artists` stays one album while each track keeps its own artist.
 
@@ -153,6 +156,8 @@ Every track includes a `streamUrl`: a signed link to its audio, valid for six ho
 FLAC tracks also include an `opusStreamUrl`, signed and valid like `streamUrl`: the same audio converted to Opus (Ogg, 256 kbit/s), about a quarter of the size of the FLAC file, for mobile data or slow connections. The first request for a track waits for the conversion (a few seconds for a song); the result is kept in `var/media`, so later requests start at once. MP3 tracks aren't converted (an MP3 would lose quality twice) and have no `opusStreamUrl`: play their `streamUrl`.
 
 To avoid that wait, a client that plays the Opus versions sends the next tracks of its queue to `POST /api/transcodes` (see below): the server converts them in the background, so they are ready when the player asks for them.
+
+Tracks whose files have ReplayGain tags include `replayGain`, with the values the file has: `trackGain` and `albumGain` in decibels, and `trackPeak` and `albumPeak`, the loudest sample (1.0 = full scale). To play at an even loudness, a player multiplies the volume by 10^(gain/20), with `trackGain` for a mix of tracks or `albumGain` for a whole album, but never by more than 1/peak, or the sound clips. A browser can't raise an `<audio>` volume above 1, so positive gains need the Web Audio API (a `GainNode`). The Opus versions keep the loudness of the original: the same values apply.
 
 Likewise, every album (also when embedded in a track) includes a `coverUrl`, and so does every artist (a thumbnail of its image); it is left out when there is no image. Use it as the `src` of an `<img>`: it stays the same for a day, so browsers cache the image.
 

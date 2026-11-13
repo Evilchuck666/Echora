@@ -115,6 +115,19 @@ class Track
     #[ORM\Column(length: 48, nullable: true)]
     private ?string $audioHash = null;
 
+    /** ReplayGain tags of the file (dB and linear peaks); exposed together by getReplayGain(). */
+    #[ORM\Column(nullable: true)]
+    private ?float $replayGainTrackGain = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?float $replayGainTrackPeak = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?float $replayGainAlbumGain = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?float $replayGainAlbumPeak = null;
+
     /**
      * Signed URL of the audio, valid for a few hours, usable without an Authorization header
      * (e.g. as the src of an <audio> element). Not stored: filled when the track is serialized.
@@ -167,6 +180,42 @@ class Track
         $this->fileSize = $metadata->fileSize;
         $this->fileModifiedAt = $metadata->fileModifiedAt;
         $this->audioHash = $metadata->audioHash;
+        $this->replayGainTrackGain = $metadata->replayGain?->trackGain;
+        $this->replayGainTrackPeak = $metadata->replayGain?->trackPeak;
+        $this->replayGainAlbumGain = $metadata->replayGain?->albumGain;
+        $this->replayGainAlbumPeak = $metadata->replayGain?->albumPeak;
+    }
+
+    /**
+     * The ReplayGain tags of the file, those it has, or null without any.
+     *
+     * @return array{trackGain?: float, trackPeak?: float, albumGain?: float, albumPeak?: float}|null
+     */
+    #[ApiProperty(
+        description: 'Loudness normalization, from the ReplayGain tags of the file, with only the values it has; left out without any. '
+            .'trackGain and albumGain are decibels to apply (play the track at 10^(gain/20) of its volume: albumGain keeps the differences within an album, trackGain evens out every track); '
+            .'trackPeak and albumPeak are the loudest samples (1.0 = full scale): never apply more than 1/peak, or the sound clips',
+        schema: [
+            'type' => 'object',
+            'properties' => [
+                'trackGain' => ['type' => 'number', 'example' => -6.48],
+                'trackPeak' => ['type' => 'number', 'example' => 0.988159],
+                'albumGain' => ['type' => 'number', 'example' => -5.92],
+                'albumPeak' => ['type' => 'number', 'example' => 0.999969],
+            ],
+        ],
+    )]
+    #[Groups(['track:read'])]
+    public function getReplayGain(): ?array
+    {
+        $replayGain = array_filter([
+            'trackGain' => $this->replayGainTrackGain,
+            'trackPeak' => $this->replayGainTrackPeak,
+            'albumGain' => $this->replayGainAlbumGain,
+            'albumPeak' => $this->replayGainAlbumPeak,
+        ], static fn (?float $value): bool => null !== $value);
+
+        return [] === $replayGain ? null : $replayGain;
     }
 
     public function getId(): Uuid
