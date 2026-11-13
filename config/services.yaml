@@ -10,6 +10,8 @@ parameters:
     # Files Echora makes: artist images downloaded from TheAudioDB and thumbnails. One folder per
     # environment, so tests never touch them; in production it is the "media" volume (compose.prod.yaml).
     app.media_dir: '%kernel.project_dir%/var/media/%kernel.environment%'
+    # Database backups (App\Database\DatabaseBackups): the backups volume, or BACKUP_DIR, in production.
+    app.backup_dir: '%kernel.project_dir%/var/backups/%kernel.environment%'
 
 services:
     # default configuration for services in *this* file

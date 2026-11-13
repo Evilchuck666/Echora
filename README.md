@@ -309,11 +309,33 @@ Spent refresh tokens are remembered in the database (the `cache_items` table) fo
 
 The `php` container runs its own scheduled jobs (`frankenphp/crontab`, with [Supercronic](https://github.com/aptible/supercronic)), so the host needs no cron. Times are in UTC:
 
+- every night at 02:30, `app:database:backup` backs the database up (see [Backups](#backups));
 - every night at 03:00, `app:library:scan --scheduled` scans the music library (skipped when a scan is already queued or running);
 - every Sunday at 04:00, `app:transcodes:prune` deletes the Opus versions that nobody played in the last 30 days, and those of tracks no longer in the library;
 - every Sunday at 04:30, `cache:pool:prune` deletes expired cache entries, such as spent refresh tokens older than 30 days.
 
 Their output is in the container's logs (`docker compose ... logs php`), and so is that of the background workers: the one that runs the scans asked for through the API, and those that convert tracks to Opus ahead of time (`TRANSCODE_WORKERS` in `prod.env`, 1 by default). Run the jobs by hand at any time with the `docker compose ... exec php bin/console` prefix; `app:transcodes:prune --days=7` keeps only the last week.
+
+### Backups
+
+The database holds what no scan can bring back: accounts, playlists, favourites and listening history. It is backed up every night at 02:30 (UTC) with `pg_dump`, into the `backups` volume, and backups older than 14 days are deleted (`BACKUP_KEEP_DAYS` in `prod.env`; the latest one is always kept). A backup next to the database is lost with the disk: set `BACKUP_DIR` in `prod.env` to a folder of another disk or a NAS, owned by uid 33 (see `prod.env.example`), or copy the backups elsewhere now and then:
+
+```sh
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml cp php:/app/var/backups/prod ./echora-backups
+```
+
+Make a backup at any time, list them, or restore one (the command asks for a confirmation; the whole database is replaced at once, or nothing changes if it fails):
+
+```sh
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:database:backup
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:database:restore
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:database:restore echora-20261113-023000.dump
+docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml restart php
+```
+
+Restart the `php` service after a restore (migrations run on start, in case the backup comes from an older version), then scan the library so the tracks match the music folder. To restore on a new machine, start Echora once (it creates an empty database), copy the backup into the `backups` volume or `BACKUP_DIR`, and restore it. The backups hold the database only: the music folder is yours to back up, and the `media` volume (covers, thumbnails, Opus files, profile pictures) is rebuilt on its own, except profile pictures, which have to be uploaded again.
+
+The tools match the database's major version (`POSTGRES_VERSION`, 16 by default): keep the same version when restoring.
 
 The key pair that signs the JWTs is generated on the first start and kept in the `jwt_keys` volume. Keep that volume: if it is lost, new keys are generated and every account has to sign in again.
 

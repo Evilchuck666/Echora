@@ -6,6 +6,9 @@ services:
     build:
       context: .
       target: frankenphp_prod
+      args:
+        # pg_dump and pg_restore of the database's major version (Dockerfile).
+        POSTGRES_VERSION: ${POSTGRES_VERSION:-16}
       additional_contexts:
         # The web client, built into the image and served at the root of the site (Dockerfile: web_build).
         web: ${WEB_DIR:-../echora-web}
@@ -20,6 +23,7 @@ services:
       THEAUDIODB_API_KEY: ${THEAUDIODB_API_KEY-123}
       REFRESH_TOKEN_GRACE_SECONDS: ${REFRESH_TOKEN_GRACE_SECONDS:-300}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
     volumes:
       # Music library, read-only. Set MUSIC_DIR in prod.env (see prod.env.example).
       - ${MUSIC_DIR:?Set MUSIC_DIR to the folder that holds your music (see prod.env.example)}:/music:ro
@@ -27,7 +31,11 @@ services:
       - jwt_keys:/app/config/jwt
       # Album covers and artist images downloaded from TheAudioDB, and thumbnails. Losing it only means downloading them again.
       - media:/app/var/media
+      # Database backups, made every night: the backups volume, or a folder of the host if BACKUP_DIR is a path (better
+      # on another disk or a NAS: a backup next to the database is lost with the disk). See prod.env.example.
+      - ${BACKUP_DIR:-backups}:/app/var/backups
 
 volumes:
   jwt_keys:
   media:
+  backups:

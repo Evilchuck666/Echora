@@ -2,6 +2,10 @@
 # Times are UTC. Copied into the image: rebuild it after a change (docker compose up --build --wait).
 # Syntax: https://github.com/aptible/supercronic#crontab-format
 
+# Every night at 02:30: back the database up (accounts, playlists, favourites, history) and delete the backups older
+# than BACKUP_KEEP_DAYS (14 by default). Restore one with app:database:restore.
+30 2 * * * php /app/bin/console app:database:backup --no-interaction
+
 # Every night at 03:00: scan the music library, so that new music shows up on its own (skipped when a scan is already
 # queued or running). Its report is in GET /api/library/scan, like the scans administrators ask for.
 0 3 * * * php /app/bin/console app:library:scan --scheduled --no-interaction

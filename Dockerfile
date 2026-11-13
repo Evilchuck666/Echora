@@ -54,6 +54,23 @@ RUN <<-EOF
 	chmod 755 /usr/local/bin/supercronic
 EOF
 
+# pg_dump and pg_restore for the database backups (App\Database\DatabaseBackups), of the server's major version: a
+# pg_restore newer than the server fails (PostgreSQL 17's sets transaction_timeout, unknown to 16), and an older pg_dump
+# refuses a newer server. From PostgreSQL's own repository, as Debian only has its default version. POSTGRES_VERSION
+# comes from compose, like the database image's tag. The key is checked against its sha256 (fingerprint
+# B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8).
+ARG POSTGRES_VERSION=16
+RUN <<-EOF
+	install -d /usr/share/postgresql-common/pgdg
+	curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+	echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc" | sha256sum -c -
+	. /etc/os-release
+	echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+	apt-get update
+	apt-get install -y --no-install-recommends "postgresql-client-${POSTGRES_VERSION%%.*}"
+	rm -rf /var/lib/apt/lists/*
+EOF
+
 ###> recipes ###
 ###> doctrine/doctrine-bundle ###
 RUN install-php-extensions pdo_pgsql
@@ -147,7 +164,10 @@ RUN <<-'EOF'
 	apt-get install -y --no-install-recommends libtree
 	mkdir -p /tmp/libs
 	BINARIES=(frankenphp php file opusenc)
-	for target in $(printf '%s\n' "${BINARIES[@]}" | xargs -I{} which {}) \
+	# pg_dump and pg_restore (database backups): the real binaries, not Debian's Perl wrappers in /usr/bin.
+	mkdir -p /tmp/pgbin
+	cp /usr/lib/postgresql/*/bin/pg_dump /usr/lib/postgresql/*/bin/pg_restore /tmp/pgbin/
+	for target in $(printf '%s\n' "${BINARIES[@]}" | xargs -I{} which {}) /tmp/pgbin/* \
 		$(find "$(php -r 'echo ini_get("extension_dir");')" -maxdepth 2 -name "*.so"); do
 		libtree -pv "$target" 2>/dev/null | grep -oP '(?:── )\K/\S+(?= \[)' | while IFS= read -r lib; do
 			[ -f "$lib" ] && cp -n "$lib" /tmp/libs/
@@ -196,6 +216,8 @@ COPY --from=frankenphp_prod_builder /usr/lib/file/magic.mgc /usr/lib/file/magic.
 
 # opusenc converts FLAC tracks to Opus (App\Library\OpusTranscoder); its libraries are in /tmp/libs.
 COPY --from=frankenphp_prod_builder /usr/bin/opusenc /usr/bin/opusenc
+# pg_dump and pg_restore for the database backups (app:database:backup, app:database:restore); libraries in /tmp/libs.
+COPY --from=frankenphp_prod_builder /tmp/pgbin/ /usr/local/bin/
 # Supercronic and the scheduled jobs (frankenphp/crontab), started by docker-entrypoint.
 COPY --from=frankenphp_prod_builder /usr/local/bin/supercronic /usr/local/bin/supercronic
 COPY --from=frankenphp_prod_builder /etc/supercronic/crontab /etc/supercronic/crontab
@@ -218,6 +240,8 @@ RUN install -d -o www-data -g 0 -m 0770 /app/config/jwt
 # Downloaded images and thumbnails (media volume in compose.prod.yaml). Created here so that Docker gives the new
 # volume this owner: a mount point missing from the image belongs to root, and PHP (www-data) couldn't write to it.
 RUN install -d -o www-data -g 0 -m 0770 /app/var/media
+# Database backups (backups volume, or BACKUP_DIR, in compose.prod.yaml), for the same reason.
+RUN install -d -o www-data -g 0 -m 0770 /app/var/backups
 
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 

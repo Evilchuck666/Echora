@@ -138,6 +138,12 @@ jobs:
           SMOKE_INSECURE: 1
         run: scripts/smoke-test-prod.sh https://localhost smoke smoke-test-password
 
+      # pg_dump of the database's version, with its libraries, in the production image, writing to the backups volume.
+      - name: Back the database up
+        run: |
+          docker compose exec -T php bin/console app:database:backup
+          docker compose exec -T php bin/console app:database:restore
+
       - name: Show the logs
         if: ${{ failure() }}
         run: docker compose logs
