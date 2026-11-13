@@ -56,4 +56,4 @@ asked for the progress while a scan runs.
 
 ## Commits
 
-- Not committed yet.
+- `c857ff8` feat(library): scan the library through the API, with progress, and every night
