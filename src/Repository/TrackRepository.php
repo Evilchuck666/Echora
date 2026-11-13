@@ -70,6 +70,34 @@ class TrackRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tracks by id, with their album and artist in the same query (to be serialized whole).
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, Track> Indexed by id (RFC 4122)
+     */
+    public function findWithAlbumAndArtist(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $tracks = [];
+        foreach ($this->createQueryBuilder('t')
+            ->addSelect('al', 'ar')
+            ->innerJoin('t.album', 'al')
+            ->innerJoin('t.artist', 'ar')
+            ->where('t.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult() as $track) {
+            $tracks[$track->getId()->toRfc4122()] = $track;
+        }
+
+        return $tracks;
+    }
+
+    /**
      * @return list<string> Identifiers (RFC 4122) of every track
      */
     public function findAllIds(): array

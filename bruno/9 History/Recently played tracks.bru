@@ -1,0 +1,27 @@
+meta {
+  name: Recently played tracks
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me/recent-tracks
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+tests {
+  test("lists the played tracks, the latest first", function () {
+    expect(res.status).to.equal(200);
+    const dates = res.body.member.map((item) => item.lastPlayedAt);
+    expect(dates).to.deep.equal([...dates].sort().reverse());
+  });
+}
+
+docs {
+  The tracks played, each once, the most recently played first: `{"track": {...}, "playCount": n, "lastPlayedAt": "..."}`, 30 per page.
+}

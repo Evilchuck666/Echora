@@ -1,0 +1,21 @@
+meta {
+  name: Play a track
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/tracks/{{trackId}}/plays
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("records the play", function () {
+    expect(res.status).to.equal(204);
+  });
+}
+
+docs {
+  Records a play of the track found by **List tracks**, now. Clients send it when a track ends, or once half of it (or 4 minutes) has played. A play of the same track within 30 seconds of another counts once. A client that played offline sends `{"playedAt": "<ISO 8601>"}` (within the last year).
+}

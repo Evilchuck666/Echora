@@ -189,6 +189,10 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `PUT /api/{tracks,albums,artists}/{id}/favourite` | Adds the item to your favourites (204; adding it twice is fine) |
 | `DELETE /api/{tracks,albums,artists}/{id}/favourite` | Removes it from your favourites (204; also when it wasn't one) |
 | `GET /api/favourites/{tracks,albums,artists}` | Your favourites of that kind, newest first |
+| `POST /api/tracks/{id}/plays` | Records that you listened to a track (204; optional `{"playedAt": "..."}`) |
+| `GET /api/me/recent-tracks` | The tracks you played, the most recently played first, with `playCount` and `lastPlayedAt` |
+| `GET /api/me/top-tracks?period=...` | The tracks you played most (`week`, `month`, `year` or `all`, the default) |
+| `DELETE /api/me/history` | Forgets your listening history |
 | `GET /api/playlists` | Your playlists, in the order you gave them (a new one comes first) |
 | `POST /api/playlists` | Creates an empty playlist: `{"name": "..."}` (201) |
 | `GET`, `PATCH`, `DELETE /api/playlists/{id}` | One of your playlists; `PATCH` renames it (`{"name": "..."}`), moves it (`{"position": n}`) or both |
@@ -216,6 +220,12 @@ Each account keeps its own favourite tracks, albums and artists; no one else see
 Each device of an account has its own list, so a phone and a tablet with the same account don't replace each other's. A request replaces the previous one of the same device: tracks of the older list that aren't converted yet are dropped, so send the whole upcoming list whenever the queue changes, and an empty list to cancel. An account keeps the lists of its 5 most recent devices; those of older ones are dropped. The lists of every device and account take turns, one track each, so no one waits for someone else's whole list. Tracks asked for this way that are already converted count as played, so `app:transcodes:prune` keeps them.
 
 The conversions run in background workers (Symfony Messenger, with its queue in PostgreSQL) that the `php` container starts next to FrankenPHP, never in the PHP workers that answer requests. `TRANSCODE_WORKERS` (1 by default) sets how many tracks are converted at once: each conversion takes one CPU core for a few seconds; `0` turns converting ahead of time off.
+
+### Listening history
+
+Each account keeps its own listening history; no one else sees it. A client records a play with `POST /api/tracks/{id}/plays` once a track counts as listened to: when it ends, or once half of it (or 4 minutes) has played, whichever comes first. A play of the same track within 30 seconds of another counts once, so a client can retry safely (a track shorter than that, played twice in a row, counts once too). A client that played offline sends `{"playedAt": "<ISO 8601>"}` when it reconnects (within the last year, not in the future).
+
+`GET /api/me/recent-tracks` lists the tracks played, each once, the most recently played first; `GET /api/me/top-tracks` the most played first, over the last `week`, `month` (30 days), `year` or `all` of the history (`?period=`, `all` by default). Each item is `{"track": {...}, "playCount": n, "lastPlayedAt": "..."}`, the track as `GET /api/tracks` returns it, 30 per page. `DELETE /api/me/history` forgets every play. Plays go with their track (a file deleted from the library) and with the account; moving or renaming files keeps them.
 
 ### Playlists
 

@@ -1,0 +1,21 @@
+meta {
+  name: Forget my history
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/me/history
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("forgets every play", function () {
+    expect(res.status).to.equal(204);
+  });
+}
+
+docs {
+  Deletes every play of the signed-in user. Nobody else's history changes.
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Most played tracks
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/me/top-tracks?period=all
+  body: none
+  auth: inherit
+}
+
+params:query {
+  period: all
+  ~page: 1
+}
+
+tests {
+  test("lists the most played tracks first", function () {
+    expect(res.status).to.equal(200);
+    const counts = res.body.member.map((item) => item.playCount);
+    expect(counts).to.deep.equal([...counts].sort((a, b) => b - a));
+  });
+}
+
+docs {
+  The tracks played most, over the `period`: `week`, `month` (30 days), `year` or `all` (the default). 422 for another period.
+}
