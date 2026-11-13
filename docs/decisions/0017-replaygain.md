@@ -46,4 +46,4 @@ Proposed from the Echora repository among the next steps for the API, and chosen
 
 ## Commits
 
-- Not committed yet.
+- `3e42ba9` feat(library): read ReplayGain tags and expose them on tracks
