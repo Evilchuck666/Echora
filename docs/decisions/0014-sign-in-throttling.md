@@ -47,4 +47,4 @@ Proposed from the Echora repository among the next steps for the API, and chosen
 
 ## Commits
 
-- Not committed yet.
+- `052dd2d` feat(security): throttle sign-in attempts and wrong current passwords
