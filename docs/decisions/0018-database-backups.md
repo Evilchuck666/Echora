@@ -54,4 +54,4 @@ Proposed from the Echora repository among the next steps for the API, and chosen
 
 ## Commits
 
-- Not committed yet.
+- `87c3c66` feat(backups): back the database up every night and restore it in one transaction
