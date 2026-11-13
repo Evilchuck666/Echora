@@ -19,6 +19,7 @@ services:
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-^$$}
       THEAUDIODB_API_KEY: ${THEAUDIODB_API_KEY-123}
       REFRESH_TOKEN_GRACE_SECONDS: ${REFRESH_TOKEN_GRACE_SECONDS:-300}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     volumes:
       # Music library, read-only. Set MUSIC_DIR in prod.env (see prod.env.example).
       - ${MUSIC_DIR:?Set MUSIC_DIR to the folder that holds your music (see prod.env.example)}:/music:ro

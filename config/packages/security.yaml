@@ -18,19 +18,31 @@ security:
             # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler(/|$)|(_wdt|assets|build)/)
             security: false
+        # POST /api/auth {"username": <username or email>, "password": ...} → {"token": ..., "refresh_token": ...}
+        # A firewall of its own, so that only password attempts are throttled: in the "api" firewall, every expired JWT
+        # or spent refresh token would count as a failed sign-in too (docs/decisions/0014).
+        login:
+            pattern: ^/api/auth$
+            stateless: true
+            provider: app_user_provider
+            json_login:
+                check_path: api_auth
+                username_path: username
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                # Lexik's handler, except for throttled attempts: 429 with Retry-After.
+                failure_handler: App\Security\LoginFailureHandler
+            # 5 failed attempts per account and IP address (and 25 per IP address, whatever the account) in 15 minutes;
+            # a successful sign-in clears the account's count. Counted in cache.rate_limiter (cache.app).
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
         api:
             pattern: ^/api
             stateless: true
             provider: app_user_provider
             # Requests without credentials get a 401 JSON response from the JWT authenticator.
             entry_point: jwt
-            # POST /api/auth {"username": <username or email>, "password": ...} → {"token": ..., "refresh_token": ...}
-            json_login:
-                check_path: api_auth
-                username_path: username
-                password_path: password
-                success_handler: lexik_jwt_authentication.handler.authentication_success
-                failure_handler: lexik_jwt_authentication.handler.authentication_failure
             # Authorization: Bearer <token> on every other request.
             jwt: ~
             # POST /api/token/refresh {"refresh_token": ...} → a new token and refresh token.

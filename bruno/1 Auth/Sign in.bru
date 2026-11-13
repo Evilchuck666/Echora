@@ -34,5 +34,7 @@ tests {
 }
 
 docs {
-  Signs in with ECHORA_USERNAME and ECHORA_PASSWORD from `bruno/.env`, and stores the JWT (`token`) and the refresh token (`refreshToken`) for the other requests.
+  Signs in with ECHORA_USERNAME (the username or the email) and ECHORA_PASSWORD from `bruno/.env`, and stores the JWT (`token`) and the refresh token (`refreshToken`) for the other requests.
+
+  After 5 failed attempts for an account from one address (25 from one address, whatever the accounts) in 15 minutes, sign-ins are refused for a while: 429, with a `Retry-After` header in seconds, even with the right password.
 }

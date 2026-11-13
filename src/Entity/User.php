@@ -68,6 +68,7 @@ use Symfony\Component\Validator\Constraints as Assert;
                 responses: [
                     '200' => new Response('Changed: every session of the account is signed out, and a new token pair is returned, as by POST /api/auth'),
                     '422' => new Response('The current password is wrong, or the new one is too short'),
+                    '429' => new Response('5 wrong current passwords in 15 minutes: wait for the seconds of the Retry-After header'),
                 ],
                 summary: 'Changes the password of the account the request is authenticated as',
             ),

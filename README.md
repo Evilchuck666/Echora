@@ -140,7 +140,7 @@ Open **https://localhost/api** in a browser to explore every endpoint. The OpenA
 
 ### Authentication
 
-1. `POST /api/auth` with `{"username": "...", "password": "..."}` (the username or the email) returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days).
+1. `POST /api/auth` with `{"username": "...", "password": "..."}` (the username or the email) returns a `token` (a JWT, valid for one hour) and a `refresh_token` (valid for 30 days). After 5 failed attempts for an account from one address, or 25 from one address whatever the accounts, in 15 minutes, sign-ins are refused for a while (`429`, with a `Retry-After` header in seconds), even with the right password; a successful sign-in clears the account's count. Wrong current passwords given to `POST /api/me/password` are limited the same way, 5 per account. Behind another reverse proxy, set `TRUSTED_PROXIES` in `prod.env` (see below).
 2. Send the JWT on every request: `Authorization: Bearer <token>`. In the documentation page, use the **Authorize** button.
 3. Before it expires, `POST /api/token/refresh` with `{"refresh_token": "..."}` returns a new pair. Each refresh token works once; presenting one that was already used signs that session out, as it may have been stolen. That includes two requests sending the same token at once: only one gets a new pair, so a client running in several places at the same time (e.g. browser tabs) has to let only one of them refresh.
    One exception covers a refresh whose response never arrived (the page was reloaded or closed, the network dropped): for 5 minutes (`REFRESH_TOKEN_GRACE_SECONDS`), the spent token still works as long as the one that replaced it hasn't been used, and returns a new pair. Theft is still detected: whoever holds the replaced pair is signed out as soon as they use it.
@@ -279,11 +279,11 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml up --wai
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:library:scan
 ```
 
-`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically. Open `https://your-domain/` and create your account: the first one becomes the administrator. Do it right away, as until then whoever reaches the server first could; or create it from the console before opening the site, with `... exec php bin/console app:user:create <email> --admin`.
+`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically. If another reverse proxy (nginx, Traefik, Cloudflare...) sits in front of Echora, set `TRUSTED_PROXIES` to its address: sign-in attempts are limited per address, and without it every client would share the proxy's. Open `https://your-domain/` and create your account: the first one becomes the administrator. Do it right away, as until then whoever reaches the server first could; or create it from the console before opening the site, with `... exec php bin/console app:user:create <email> --admin`.
 
 To update, pull both repositories and run the `build` and `up` commands again: the image is rebuilt with the new API and web client, and migrations run on start.
 
-After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once). If the account has no profile picture, it gives it one for a moment and removes it.
+After deploying, check the site from any machine with `scripts/smoke-test-prod.sh https://your-domain <username> <password>`. It needs an account and a scanned library, and leaves the library untouched (it signs in and out once, and makes 6 failed sign-ins with a made-up account to check the throttling, which leaves the real one alone). If the account has no profile picture, it gives it one for a moment and removes it.
 
 Spent refresh tokens are remembered in the database (the `cache_items` table) for 30 days, to recognise a stolen one.
 

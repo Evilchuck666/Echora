@@ -148,6 +148,17 @@ check "signing out" '[ "$(status)" = 200 ]'
 request -X POST -H "Content-Type: application/json" -d "{\"refresh_token\": \"$REFRESH\"}" "$BASE/api/token/refresh"
 check "a signed-out refresh token is refused" '[ "$(status)" = 401 ]'
 
+echo "Sign-in throttling"
+# A made-up account, never the one given: 5 failed attempts lock it for this address. They also take 6 of the 25
+# failed attempts this address may make in 15 minutes.
+NOBODY="smoke-throttle-$RANDOM$RANDOM"
+for _ in 1 2 3 4 5; do
+    request -X POST -H "Content-Type: application/json" -d "{\"username\": \"$NOBODY\", \"password\": \"wrong-password\"}" "$BASE/api/auth"
+done
+check "5 failed sign-ins are refused one by one" '[ "$(status)" = 401 ]'
+request -X POST -H "Content-Type: application/json" -d "{\"username\": \"$NOBODY\", \"password\": \"wrong-password\"}" "$BASE/api/auth"
+check "the next one is throttled, with Retry-After" '[ "$(status)" = 429 ] && [ "$(header Retry-After)" -gt 0 ]'
+
 if [ "$FAILURES" -gt 0 ]; then
     echo "$FAILURES check(s) failed."
     exit 1

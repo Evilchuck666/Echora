@@ -2,6 +2,19 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+    # Behind another reverse proxy (nginx, Traefik, Cloudflare...), every request comes from its address: list it in
+    # TRUSTED_PROXIES so that the client's address is read from X-Forwarded-For. Sign-in throttling counts attempts
+    # per address, and would otherwise lock everyone out at once. Empty: no proxy is trusted, the header is ignored.
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port']
+
+    # Wrong current passwords given to POST /api/me/password, per account (App\State\PasswordChangeProcessor).
+    rate_limiter:
+        password_change:
+            policy: sliding_window
+            limit: 5
+            interval: '15 minutes'
+
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 

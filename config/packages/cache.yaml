@@ -21,3 +21,13 @@ framework:
             # it has to survive restarts and deploys, or a replayed token would no longer be recognised.
             cache.refresh_tokens:
                 adapter: cache.adapter.doctrine_dbal
+
+when@test:
+    framework:
+        cache:
+            pools:
+                # Throttled attempts in PostgreSQL in tests: kept from one request to the next, and rolled back with the rest
+                # after each test (DAMA). The filesystem would keep them between tests and runs, and an array would be
+                # emptied before every request.
+                cache.rate_limiter:
+                    adapter: cache.adapter.doctrine_dbal
