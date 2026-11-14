@@ -98,6 +98,37 @@ class TrackRepository extends ServiceEntityRepository
     }
 
     /**
+     * The tracks of an album, or of an artist (their own albums, and their tracks on other artists' albums), in the
+     * order of the library (as GET /api/tracks), with their album and artist, in one query.
+     *
+     * @return list<Track>
+     */
+    public function findInLibraryOrder(?Uuid $albumId = null, ?Uuid $artistId = null): array
+    {
+        $query = $this->createQueryBuilder('t')
+            ->addSelect('al', 'ar', 'aa')
+            ->innerJoin('t.album', 'al')
+            ->innerJoin('t.artist', 'ar')
+            ->innerJoin('al.artist', 'aa')
+            ->orderBy('aa.name')
+            ->addOrderBy('al.year')
+            ->addOrderBy('al.title')
+            ->addOrderBy('t.discNumber')
+            ->addOrderBy('t.trackNumber')
+            ->addOrderBy('t.title')
+            ->addOrderBy('t.id');
+        if (null !== $albumId) {
+            $query->andWhere('al.id = :album')->setParameter('album', $albumId, 'uuid');
+        }
+        if (null !== $artistId) {
+            $query->andWhere('aa.id = :artist OR ar.id = :artist')->setParameter('artist', $artistId, 'uuid');
+        }
+
+        /* @var list<Track> */
+        return $query->getQuery()->getResult();
+    }
+
+    /**
      * @return list<string> Identifiers (RFC 4122) of every track
      */
     public function findAllIds(): array

@@ -195,6 +195,8 @@ Likewise, every album (also when embedded in a track) includes a `coverUrl`, and
 | `PUT /api/{tracks,albums,artists}/{id}/favourite` | Adds the item to your favourites (204; adding it twice is fine) |
 | `DELETE /api/{tracks,albums,artists}/{id}/favourite` | Removes it from your favourites (204; also when it wasn't one) |
 | `GET /api/favourites/{tracks,albums,artists}` | Your favourites of that kind, newest first |
+| `GET /api/{tracks,albums,artists,playlists}/{id}/download?format=...` | What to download to play it offline: each track's signed URL, format, size and where to save it (see below) |
+| `GET /api/tracks/{id}/file[/opus]` | A track's file to download (an attachment), with HTTP Range support. Use the `url` of a download manifest |
 | `POST /api/tracks/{id}/plays` | Records that you listened to a track (204; optional `{"playedAt": "..."}`) |
 | `GET /api/me/recent-tracks` | The tracks you played, the most recently played first, with `playCount` and `lastPlayedAt` |
 | `GET /api/me/top-tracks?period=...` | The tracks you played most (`week`, `month`, `year` or `all`, the default) |
@@ -226,6 +228,23 @@ Each account keeps its own favourite tracks, albums and artists; no one else see
 Each device of an account has its own list, so a phone and a tablet with the same account don't replace each other's. A request replaces the previous one of the same device: tracks of the older list that aren't converted yet are dropped, so send the whole upcoming list whenever the queue changes, and an empty list to cancel. An account keeps the lists of its 5 most recent devices; those of older ones are dropped. The lists of every device and account take turns, one track each, so no one waits for someone else's whole list. Tracks asked for this way that are already converted count as played, so `app:transcodes:prune` keeps them.
 
 The conversions run in background workers (Symfony Messenger, with its queue in PostgreSQL) that the `php` container starts next to FrankenPHP, never in the PHP workers that answer requests. `TRANSCODE_WORKERS` (1 by default) sets how many tracks are converted at once: each conversion takes one CPU core for a few seconds; `0` turns converting ahead of time off.
+
+### Downloads
+
+Apps download music to play it offline, like Spotify's: `GET /api/tracks/{id}/download`, `/api/albums/{id}/download`, `/api/artists/{id}/download` (their own albums and their tracks on other artists' albums) or `/api/playlists/{id}/download` (one's own only) returns a manifest of what to download:
+
+```json
+{
+  "kind": "album", "id": "…", "name": "First Album", "format": "original", "expiresAt": "…",
+  "trackCount": 2, "totalSize": 17888, "totalSizeComplete": true,
+  "tracks": [{"id": "…", "title": "Opening", "artist": "Test Artist", "album": "First Album", "discNumber": 1, "trackNumber": 1,
+              "durationMs": 1000, "format": "flac", "mimeType": "audio/flac", "size": 8944,
+              "savePath": "Test Artist/2020 - First Album/01 - Opening.flac", "url": "https://…/api/tracks/…/file?_expiration=…&_hash=…"}],
+  "covers": [{"album": "…", "savePath": "Test Artist/2020 - First Album/cover.jpg", "url": "https://…"}]
+}
+```
+
+Each track comes once, in order (a playlist adds `items`, the track of each of its items, to rebuild it), with a signed URL valid a day. The client downloads the files one by one: they are attachments with a readable name, served by Caddy with byte ranges, so a download cut short resumes. `?format=opus` gives FLAC tracks converted to Opus, about a quarter of the size, for a client saving data; MP3 tracks come as they are, and `format` says what each file is. An Opus file not converted yet has no `size`, and its first download waits for the conversion (a few seconds). The server builds no archive: the web client doesn't download.
 
 ### Listening history
 

@@ -1,0 +1,36 @@
+meta {
+  name: Download album
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{albumIri}}/download?format=original
+  body: none
+  auth: inherit
+}
+
+params:query {
+  format: original
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.tracks.length > 0) {
+    bru.setVar("downloadUrl", res.body.tracks[0].url);
+  }
+}
+
+tests {
+  test("lists the album's tracks with where to save them", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.kind).to.equal("album");
+    res.body.tracks.forEach((track) => {
+      expect(track.url).to.contain("_hash=");
+      expect(track.savePath).to.be.a("string");
+    });
+  });
+}
+
+docs {
+  The manifest of the album found by **List albums**: its tracks in order, each with a signed `url` (valid a day), `format`, `size` and `savePath` (e.g. `Artist/2020 - Album/01 - Title.flac`), and its cover. Change `format` to `opus` to get FLAC tracks converted (their `size` is null until converted).
+}

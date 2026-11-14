@@ -66,9 +66,11 @@ final readonly class LibraryFiles
     }
 
     /**
-     * @param string $file Absolute path, already checked by the caller
+     * @param string      $file         Absolute path, already checked by the caller
+     * @param string|null $downloadName Name to save the file as: the browser or app downloads it (attachment) instead
+     *                                  of playing it
      */
-    public function fileResponse(string $file, string $mimeType): BinaryFileResponse
+    public function fileResponse(string $file, string $mimeType, ?string $downloadName = null): BinaryFileResponse
     {
         // Behind Caddy (frankenphp/Caddyfile), which sets the X-Sendfile-Type and X-Accel-Mapping request headers
         // itself, the response carries an X-Accel-Redirect header instead of the file, and Caddy sends the file.
@@ -77,7 +79,13 @@ final readonly class LibraryFiles
 
         // private: shared caches must not keep files that require authentication.
         $response = new BinaryFileResponse($file, headers: ['Content-Type' => $mimeType], public: false, autoEtag: true, autoLastModified: true);
-        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, basename($file));
+        if (null === $downloadName) {
+            $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, basename($file));
+        } else {
+            // The header needs a plain ASCII name too, for clients that don't read the UTF-8 one (filename*).
+            $fallback = preg_replace('/[^\x20-\x7e]|[%\/\\\\"]/', '_', $downloadName) ?? 'track';
+            $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $downloadName, $fallback);
+        }
 
         return $response;
     }

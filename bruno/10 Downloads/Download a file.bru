@@ -1,0 +1,26 @@
+meta {
+  name: Download a file
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{downloadUrl}}
+  body: none
+  auth: none
+}
+
+headers {
+  Range: bytes=0-1023
+}
+
+tests {
+  test("serves the file as an attachment, by ranges, without the JWT", function () {
+    expect(res.status).to.equal(206);
+    expect(res.headers["content-disposition"]).to.match(/^attachment/);
+  });
+}
+
+docs {
+  The first file of **Download album**, by its signed URL: no Authorization header. Served as an attachment with a readable name, and by byte ranges, so a download cut short resumes.
+}

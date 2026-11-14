@@ -1,0 +1,22 @@
+meta {
+  name: Download track
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/tracks/{{trackId}}/download
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("lists the track", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.trackCount).to.equal(1);
+  });
+}
+
+docs {
+  The manifest of a single track, found by **List tracks**. Playlists have one too: `/api/playlists/{id}/download` (see **6 Playlists**), with `items`, the track of each item in order.
+}

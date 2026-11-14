@@ -30,6 +30,7 @@ deleted.
 | [0017](0017-replaygain.md) | ReplayGain tags read by the scanner (any-case TXXX too) and given to players per track | 2026-11-13 | Accepted |
 | [0018](0018-database-backups.md) | Nightly database backups (pg_dump of the server's version, kept 14 days), restored in one transaction | 2026-11-13 | Accepted |
 | [0019](0019-recently-added-albums.md) | Recently added albums, dated by when a scan first found them (`addedAt`, read from the UUIDv7 ids for existing ones) | 2026-11-14 | Accepted |
+| [0020](0020-downloads-for-offline-playback.md) | Downloads for offline playback: manifests of signed files, original or Opus as the client chooses; no archives | 2026-11-14 | Accepted |
 
 Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; its
 README section and CLAUDE.md describe it.

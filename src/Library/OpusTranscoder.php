@@ -180,6 +180,21 @@ final readonly class OpusTranscoder
     }
 
     /**
+     * Size in bytes of the Opus version of a track, if it is converted already (without counting it as used).
+     */
+    public function convertedSize(string $source, string $trackId): ?int
+    {
+        try {
+            $file = $this->file($source, $trackId);
+        } catch (TranscodingFailed) {
+            return null;
+        }
+        $size = @filesize($file);
+
+        return false === $size ? null : $size;
+    }
+
+    /**
      * @throws TranscodingFailed if the source cannot be read
      */
     private function file(string $source, string $trackId): string

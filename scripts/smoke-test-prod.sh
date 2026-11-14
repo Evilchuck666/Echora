@@ -157,6 +157,15 @@ else
     check "only administrators scan the library" '[ "$(status)" = 403 ]'
 fi
 
+echo "Downloads (sent by Caddy)"
+request "${AUTH[@]}" "$BASE/api/tracks"
+TRACK_ID=$(json 'data[0]["id"]')
+request "${AUTH[@]}" "$BASE/api/tracks/$TRACK_ID/download"
+FILE=$(json 'data["tracks"][0]["url"]')
+check "a track has a download manifest" '[ "$(status)" = 200 ] && [ -n "$FILE" ] && [ -n "$(json "data[\"tracks\"][0][\"savePath\"]")" ]'
+request -H "Range: bytes=0-99" "$FILE"
+check "its file is an attachment with a name, without the JWT, by ranges" '[ "$(status)" = 206 ] && [[ "$(header Content-Disposition)" == attachment* ]] && [[ "$(header Content-Disposition)" == *filename=* ]]'
+
 echo "Session"
 request -X POST -H "Content-Type: application/json" -d "{\"refresh_token\": \"$REFRESH\"}" "$BASE/api/token/refresh"
 check "the refresh token gives a new pair" '[ "$(status)" = 200 ] && [ -n "$(json "data[\"refresh_token\"]")" ]'

@@ -23,6 +23,9 @@ final readonly class SignedUrlGenerator
     /** Long enough to play an album, pause and resume; clients fetch the track again afterwards. */
     public const int STREAM_LIFETIME_SECONDS = 6 * 3600;
 
+    /** Downloading a whole artist can take a while, on a slow connection: a day. */
+    public const int DOWNLOAD_LIFETIME_SECONDS = 24 * 3600;
+
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
         private UriSigner $uriSigner,
@@ -94,6 +97,31 @@ final readonly class SignedUrlGenerator
         $url = $this->urlGenerator->generate('user_avatar', ['id' => $user->getId()->toRfc4122(), 'v' => pathinfo($avatar, \PATHINFO_FILENAME)], UrlGeneratorInterface::ABSOLUTE_URL);
 
         return $this->uriSigner->sign($url, self::coverExpiration());
+    }
+
+    /**
+     * The audio of the track to save (as it is), for clients that keep music to play offline.
+     */
+    public function download(Track $track): string
+    {
+        return $this->sign('track_file', $track->getId()->toRfc4122(), new \DateInterval(\sprintf('PT%dS', self::DOWNLOAD_LIFETIME_SECONDS)));
+    }
+
+    /**
+     * The audio of a FLAC track converted to Opus, to save; null for other tracks, which aren't converted.
+     */
+    public function opusDownload(Track $track): ?string
+    {
+        if (!$track->isAvailableInOpus()) {
+            return null;
+        }
+
+        return $this->sign('track_file_opus', $track->getId()->toRfc4122(), new \DateInterval(\sprintf('PT%dS', self::DOWNLOAD_LIFETIME_SECONDS)));
+    }
+
+    public static function downloadExpiration(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(\sprintf('+%d seconds', self::DOWNLOAD_LIFETIME_SECONDS));
     }
 
     public static function coverExpiration(): \DateTimeImmutable
