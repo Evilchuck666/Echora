@@ -56,4 +56,4 @@ by the client's "Data saver".
 
 ## Commits
 
-- Not committed yet.
+- `f30a5c3` feat(downloads): download manifests for offline playback, original or Opus
