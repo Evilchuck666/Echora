@@ -38,4 +38,4 @@ owner among the next steps.
 
 ## Commits
 
-- To be recorded.
+- `b0619e2` feat(albums): list recently added albums
