@@ -33,6 +33,9 @@ when@test:
         dbal:
             # "TEST_TOKEN" is typically set by ParaTest
             dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+            # Tests count queries (doctrine.debug_data_holder) but never read their backtraces, which tests making hundreds
+            # of queries in one kernel (PlaylistEditorTest) pile up until PHPUnit runs out of memory.
+            profiling_collect_backtrace: false
 
 when@prod:
     doctrine:
