@@ -8,6 +8,7 @@ use App\Entity\Album;
 use App\Entity\Artist;
 use App\Entity\Track;
 use App\Library\LibraryScanner;
+use Doctrine\ORM\EntityManagerInterface;
 
 final class LibraryApiTest extends ApiTestCase
 {
@@ -75,6 +76,43 @@ final class LibraryApiTest extends ApiTestCase
             [['Test Artist', 'First Album'], ['Test Artist', 'Second Album'], ['Unknown Artist', 'Unknown Album'], ['Various Artists', 'Compilation']],
             array_map(static fn (mixed $album): array => \is_array($album) && \is_array($album['artist']) ? [$album['artist']['name'], $album['title']] : [], $albums),
         );
+    }
+
+    public function testRecentlyAddedAlbumsComeLatestFirstAndSayWhen(): void
+    {
+        // A scan creates the fixtures within a second: give them days apart, as successive scans would.
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $days = ['Second Album' => 3, 'Compilation' => 1, 'First Album' => 10, 'Unknown Album' => 5];
+        foreach ($entityManager->getRepository(Album::class)->findAll() as $album) {
+            $entityManager->getConnection()->executeStatement(
+                'UPDATE album SET added_at = :at WHERE id = :id',
+                ['at' => new \DateTimeImmutable(\sprintf('-%d days', $days[$album->getTitle()])), 'id' => $album->getId()->toRfc4122()],
+                ['at' => 'datetime_immutable'],
+            );
+        }
+        // Written with SQL: the albums already loaded would answer with the dates they had.
+        $entityManager->clear();
+
+        $response = $this->client->request('GET', '/api/albums/recently-added')->toArray();
+
+        $albums = $response['member'];
+        self::assertIsArray($albums);
+        self::assertSame(['Compilation', 'Second Album', 'Unknown Album', 'First Album'], array_column($albums, 'title'));
+        self::assertSame(4, $response['totalItems']);
+        self::assertIsArray($albums[0]);
+        self::assertIsString($albums[0]['addedAt']);
+        self::assertEqualsWithDelta((new \DateTimeImmutable('-1 day'))->getTimestamp(), (new \DateTimeImmutable($albums[0]['addedAt']))->getTimestamp(), 5);
+        // As every album list: with its artist.
+        self::assertIsArray($albums[0]['artist']);
+        self::assertSame('Various Artists', $albums[0]['artist']['name']);
+    }
+
+    public function testANewAlbumIsAddedNow(): void
+    {
+        $album = self::getContainer()->get('doctrine')->getRepository(Album::class)->findOneBy(['title' => 'First Album']);
+        self::assertInstanceOf(Album::class, $album);
+
+        self::assertEqualsWithDelta(time(), $album->getAddedAt()->getTimestamp(), 60);
     }
 
     public function testAnArtistsAlbumsGoByYearNotByTitleWithUndatedOnesLastAlsoInTheWholeList(): void

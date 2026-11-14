@@ -21,6 +21,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[ORM\Entity(repositoryClass: AlbumRepository::class)]
 #[ORM\UniqueConstraint(name: 'album_artist_title', columns: ['artist_id', 'title'])]
+#[ORM\Index(name: 'album_added_at', columns: ['added_at'])]
 #[ApiResource(
     operations: [
         new GetCollection(parameters: [
@@ -28,6 +29,13 @@ use Symfony\Component\Uid\Uuid;
             'title' => new QueryParameter(filter: new PartialSearchFilter(), property: 'title', description: 'Part of the album title, case-insensitive'),
             'year' => new QueryParameter(filter: new ExactFilter(), property: 'year', description: 'Release year'),
         ]),
+        // Before Get, so /albums/recently-added isn't taken for the album with the id "recently-added".
+        new GetCollection(
+            uriTemplate: '/albums/recently-added',
+            name: 'albums_recently_added',
+            description: 'The albums of the library, the most recently added first (when a scan first found them; docs/decisions/0019).',
+            order: ['addedAt' => 'DESC', 'id' => 'DESC'],
+        ),
         new GetCollection(
             uriTemplate: '/favourites/albums',
             name: 'favourites_albums',
@@ -77,6 +85,12 @@ class Album
     #[Groups(['album:read'])]
     private bool $favourite = false;
 
+    /** When a scan first found the album: what GET /api/albums/recently-added orders by. */
+    #[ORM\Column]
+    #[ApiProperty(description: 'When a scan first found the album in the library (GET /api/albums/recently-added lists the latest first)')]
+    #[Groups(['album:read'])]
+    private \DateTimeImmutable $addedAt;
+
     public function __construct(
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false)]
@@ -90,6 +104,7 @@ class Album
         private ?int $year = null,
     ) {
         $this->id = Uuid::v7();
+        $this->addedAt = new \DateTimeImmutable();
     }
 
     public function getId(): Uuid
@@ -105,6 +120,11 @@ class Album
     public function getTitle(): string
     {
         return $this->title;
+    }
+
+    public function getAddedAt(): \DateTimeImmutable
+    {
+        return $this->addedAt;
     }
 
     public function getYear(): ?int

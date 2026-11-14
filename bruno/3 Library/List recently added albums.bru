@@ -1,0 +1,32 @@
+meta {
+  name: List recently added albums
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/albums/recently-added
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 1
+}
+
+tests {
+  test("lists albums, the most recently added first", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.member).to.be.an("array");
+    const dates = res.body.member.map((album) => Date.parse(album.addedAt));
+    dates.forEach((date, index) => {
+      if (index > 0) {
+        expect(date).to.be.at.most(dates[index - 1]);
+      }
+    });
+  });
+}
+
+docs {
+  The albums of the library, the most recently added first: `addedAt` is when a scan first found the album (docs/decisions/0019). 30 per page.
+}
