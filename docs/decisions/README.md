@@ -2,7 +2,7 @@
 
 Why the API is the way it is: one short record per decision that shaped it, with the problem it answered, what was
 chosen (and what wasn't), what it costs, and the commit that made it. How things work today is in the
-[README](../../README.md) and [CLAUDE.md](../../CLAUDE.md); these records keep the reasons, which the code doesn't.
+[README](../../README.md), the [technical guide](../../TECHNICAL_GUIDE.md) and [CLAUDE.md](../../CLAUDE.md); these records keep the reasons, which the code doesn't.
 
 Many of these changes were asked for while building the web client, [Echora Web](https://github.com/Evilchuck666/echora-web),
 from its own repository and sessions: each record says where it came from. A new decision about the API gets a new
@@ -32,8 +32,8 @@ deleted.
 | [0019](0019-recently-added-albums.md) | Recently added albums, dated by when a scan first found them (`addedAt`, read from the UUIDv7 ids for existing ones) | 2026-11-14 | Accepted |
 | [0020](0020-downloads-for-offline-playback.md) | Downloads for offline playback: manifests of signed files, original or Opus as the client chooses; no archives | 2026-11-14 | Accepted |
 
-Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; its
-README section and CLAUDE.md describe it.
+Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; the
+README, the technical guide and CLAUDE.md describe it.
 
 ## Format
 
