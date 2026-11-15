@@ -1,14 +1,27 @@
 {
+  // All of them are on Open VSX, so editors without Microsoft's marketplace (Code - OSS, VSCodium) can install them.
   "recommendations": [
+    // PHP, Symfony and the Xdebug configuration (launch.json)
     "bmewburn.vscode-intelephense-client",
     "symfony.language-tools",
     "xdebug.php-debug",
+    // Symfony configuration, Compose files and GitHub workflows
     "redhat.vscode-yaml",
-    "editorconfig.editorconfig",
+    // Dockerfile, Compose and the running containers
     "docker.docker",
     "ms-azuretools.vscode-containers",
+    // frankenphp/Caddyfile
+    "matthewpi.caddyfile-support",
+    // scripts/, frankenphp/docker-entrypoint.sh and .claude/hooks/
+    "timonwong.shellcheck",
+    // .github/workflows/
+    "github.vscode-github-actions",
+    // .editorconfig
+    "editorconfig.editorconfig",
+    // The PostgreSQL database
     "mtxr.sqltools",
     "mtxr.sqltools-driver-pg",
+    // The API collection in bruno/
     "bruno-api-client.bruno"
   ]
 }

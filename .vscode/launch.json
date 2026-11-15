@@ -1,5 +1,9 @@
 {
-  // Start the app with Xdebug enabled first: XDEBUG_MODE=develop,debug docker compose up --wait
+  // Xdebug runs in the php container and connects to the editor on port 9003 (xdebug.client_host in
+  // frankenphp/conf.d/20-app.dev.ini). Start the stack with Xdebug first: the "Start with Xdebug" task, or
+  // XDEBUG_MODE=develop,debug docker compose up --wait. Every request to the API is then debugged, with or without a
+  // trigger (FrankenPHP's PHP workers start a session on every request); console commands only when asked:
+  // docker compose exec -e XDEBUG_TRIGGER=1 php bin/console ...
   "version": "0.2.0",
   "configurations": [
     {

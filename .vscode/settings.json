@@ -1,20 +1,14 @@
 {
-  // PHP runs inside Docker, not on the host: disable the built-in features that need a local php binary.
-  "php.validate.enable": false,
-  "php.suggest.basic": false,
-
-  "[php]": {
-    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
-  },
-
-  // Must match the PHP version of the Docker image (Dockerfile: dunglas/frankenphp:1-php8.5).
-  "intelephense.environment.phpVersion": "8.5.0",
+  // Folder-scoped settings only (resource and language scopes). The project is opened through Echora.code-workspace,
+  // and VS Code ignores window-scoped settings in this file when it is: those live in the workspace file. Never repeat
+  // a setting in both places.
 
   // Symfony Language Tools boots the kernel for runtime metadata: run it in the php container (needs the stack up).
   "symfonyLsp.phpCommand": ["docker", "compose", "exec", "-T", "php", "php"],
   "symfonyLsp.containerProjectRoot": "/app",
 
-  // Intelephense defaults plus Symfony's var/ (cache holds generated copies of classes and would duplicate symbols).
+  // Intelephense's defaults plus Symfony's var/: its cache holds generated copies of classes, which would duplicate
+  // symbols. On the host var/ is only the mount point of a Docker volume, unless compose.override.yaml stops mounting it.
   "intelephense.files.exclude": [
     "**/.git/**",
     "**/.svn/**",
@@ -29,13 +23,10 @@
     "**/var/**"
   ],
 
+  // Composer's vendor/ and Symfony's var/ change thousands of files at once (composer install, cache warmup): don't
+  // watch them. Search already leaves them out, because it follows .gitignore.
   "files.watcherExclude": {
-    "**/var/**": true,
-    "**/vendor/**": true
-  },
-  "search.exclude": {
-    "**/var/**": true,
-    "**/vendor/**": true
-  },
-  "python.terminal.useEnvFile": true
+    "**/vendor/**": true,
+    "**/var/**": true
+  }
 }

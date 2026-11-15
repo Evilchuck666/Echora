@@ -275,6 +275,8 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml run --rm
 
 ## Development
 
+In VS Code (or Code - OSS), open `Echora.code-workspace` rather than the folder: it recommends the extensions, has tasks for the usual commands (starting and stopping the stack, the checks, migrations, a scan) and starts the stack when it opens (the **Start** task), once VS Code may run automatic tasks (`task.allowAutomaticTasks`, in your user settings).
+
 Run PHP, Composer and console commands inside the `php` container:
 
 ```sh
@@ -290,7 +292,7 @@ On Linux, files created from inside the container belong to root. Give them back
 
 The background workers (`messenger:consume transcodes` and `messenger:consume library`) are long-running processes that keep the classes they loaded: after changing code they run (the Opus conversions: `TranscodeTracksHandler`, `TranscodeQueue`, `OpusTranscoder`, the `TranscodeTracks` message; the scans: `ScanLibraryHandler`, `LibraryScans`, `LibraryScanner` and what it uses), run `docker compose restart php` so they start again with it. `docker compose up --build` doesn't recreate the container when the image didn't change. `messenger:stop-workers` isn't enough: an idle worker only sees it when the next message wakes it up, and handles that message with the old code first. A change to `frankenphp/docker-entrypoint.sh` or `frankenphp/crontab` needs `docker compose up --build --wait`.
 
-To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` and run the **Debug PHP (Docker)** configuration in VS Code.
+To debug with Xdebug, start the stack with `XDEBUG_MODE=develop,debug docker compose up --wait` (the **Start with Xdebug** task in VS Code) and run the **Debug PHP (Docker)** configuration. Every request to the API then starts a debugging session, with or without a trigger (FrankenPHP's PHP workers start one on every request), so the breakpoints of the code it runs are hit. Console commands only start one when asked with `XDEBUG_TRIGGER=1`: `docker compose exec -e XDEBUG_TRIGGER=1 php bin/console ...`. When you're done, start the stack again without it (`docker compose up --wait`): until then, Xdebug tries to reach the editor on every request.
 
 Why the API is built the way it is (and where each change came from) is recorded in [docs/decisions](docs/decisions/README.md): one short record per decision, with its commits.
 

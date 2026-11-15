@@ -5,14 +5,19 @@
       "path": "."
     }
   ],
-  // The project settings, the Xdebug configuration and the recommended extensions live in .vscode/, so they also apply
-  // when the folder is opened directly. VS Code ignores window-wide settings in .vscode/settings.json when the project is
-  // opened through this file, so those are repeated here: keep both copies in step.
+  // The project is always opened through this file, which makes it a workspace: VS Code then applies only the
+  // folder-scoped settings (resource and language scopes) of .vscode/settings.json and ignores its window-scoped ones.
+  // Each setting lives in exactly one place, chosen by its scope: window-scoped ones here, the rest in
+  // .vscode/settings.json. The debug configuration, the tasks and the recommended extensions live in .vscode/ too
+  // (launch.json, tasks.json, extensions.json), so this file has no "launch", "tasks" or "extensions" section.
   "settings": {
-    // PHP runs inside Docker, not on the host: disable the built-in features that need a local php binary.
+    // PHP runs inside Docker, not on the host: turn off the built-in PHP features that need a local php binary.
     "php.validate.enable": false,
     "php.suggest.basic": false,
-    // Must match the PHP version of the Docker image (Dockerfile: dunglas/frankenphp:1-php8.5).
-    "intelephense.environment.phpVersion": "8.5.0"
+    // The PHP version of the Docker image (Dockerfile: dunglas/frankenphp:1-php8.5).
+    "intelephense.environment.phpVersion": "8.5.0",
+    // The coding style is php-cs-fixer's @Symfony ruleset (composer cs:fix, the "Fix coding style" task). Intelephense's
+    // formatter disagrees with it (it adds spaces around the concatenation operator), so formatting a file would undo it.
+    "intelephense.format.enable": false
   }
 }

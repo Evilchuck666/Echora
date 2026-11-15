@@ -22,26 +22,27 @@
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
 
+# Local PHPStan configuration: PHPStan reads it instead of phpstan.dist.neon
+/phpstan.neon
+
 # Production settings for Docker Compose (see prod.env.example)
 /prod.env
 
 # Bruno credentials (see bruno/.env.example)
 /bruno/.env
 
-# Editors: only the shared VS Code files in .vscode/ are tracked
+# VS Code: only the shared project files are tracked (these and Echora.code-workspace). Extensions may write other files
+# here, some of them with credentials.
 /.vscode/*
+!/.vscode/extensions.json
+!/.vscode/launch.json
 !/.vscode/settings.json
 !/.vscode/tasks.json
-!/.vscode/launch.json
-!/.vscode/extensions.json
-/.idea/
-*.swp
-*~
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Personal Claude Code files
+# Personal Claude Code files (the shared ones are .claude/settings.json and .claude/hooks/)
 /CLAUDE.local.md
 /.claude/settings.local.json
+
+# Operating system files (also kept out of the Docker build context by .dockerignore)
+.DS_Store
+Thumbs.db

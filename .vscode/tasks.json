@@ -1,0 +1,108 @@
+{
+  // The host has no PHP: every PHP command runs in the php container of the Docker Compose stack (compose.yaml and
+  // compose.override.yaml), so the stack must be up for all the tasks below except the first ones.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Runs on its own when the workspace opens, once VS Code may run automatic tasks (task.allowAutomaticTasks, a user
+      // setting that no workspace can change). Does nothing when the stack is already up, except recreating the php
+      // container without Xdebug if it was started with it.
+      "label": "Start",
+      "type": "shell",
+      "command": "docker compose up --wait",
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": []
+    },
+    {
+      // For the "Debug PHP (Docker)" configuration (launch.json). Recreates the php container if it ran without it.
+      "label": "Start with Xdebug",
+      "type": "shell",
+      "command": "docker compose up --wait",
+      "options": {
+        "env": {
+          "XDEBUG_MODE": "develop,debug"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      // After changing the Dockerfile, frankenphp/docker-entrypoint.sh or frankenphp/crontab (copied into the image).
+      "label": "Rebuild and start",
+      "type": "shell",
+      "command": "docker compose up --build --wait",
+      "problemMatcher": []
+    },
+    {
+      // After changing the Caddyfile or code the Messenger workers run (Opus conversions, library scans): they keep the
+      // classes they loaded.
+      "label": "Restart PHP",
+      "type": "shell",
+      "command": "docker compose restart php",
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans",
+      "problemMatcher": []
+    },
+    {
+      // What the CI runs: cs, phpstan and test.
+      "label": "Check (cs, PHPStan, tests)",
+      "type": "shell",
+      "command": "docker compose exec php composer check",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Tests",
+      "type": "shell",
+      "command": "docker compose exec php composer test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check coding style",
+      "type": "shell",
+      "command": "docker compose exec php composer cs",
+      "problemMatcher": []
+    },
+    {
+      "label": "Fix coding style",
+      "type": "shell",
+      "command": "docker compose exec php composer cs:fix",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHPStan",
+      "type": "shell",
+      "command": "docker compose exec php composer phpstan",
+      "problemMatcher": []
+    },
+    {
+      // The container also runs pending migrations every time it starts.
+      "label": "Migrate the database",
+      "type": "shell",
+      "command": "docker compose exec php bin/console doctrine:migrations:migrate --no-interaction",
+      "problemMatcher": []
+    },
+    {
+      "label": "Scan the library",
+      "type": "shell",
+      "command": "docker compose exec php bin/console app:library:scan",
+      "problemMatcher": []
+    },
+    {
+      // Gives back to the host user the files created as root in the container (composer require, make:*, recipes).
+      "label": "Fix file ownership",
+      "type": "shell",
+      "command": "scripts/fix-permissions.sh",
+      "problemMatcher": []
+    }
+  ]
+}
