@@ -13,9 +13,9 @@ services:
         # The web client, built into the image and served at the root of the site (Dockerfile: web_build).
         web: ${WEB_DIR:-../echora-web}
     environment:
-      APP_SECRET: ${APP_SECRET}
-      MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET in prod.env (see prod.env.example)}
+      MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:?Set CADDY_MERCURE_JWT_SECRET in prod.env (see prod.env.example)}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:?Set CADDY_MERCURE_JWT_SECRET in prod.env (see prod.env.example)}
       JWT_PASSPHRASE: ${JWT_PASSPHRASE:?Set JWT_PASSPHRASE in prod.env (see prod.env.example)}
       # The web client is served from the same origin and native apps don't need CORS: by default, no other site
       # may call the API from a browser ("^$$" matches no origin). See prod.env.example.
@@ -34,6 +34,11 @@ services:
       # Database backups, made every night: the backups volume, or a folder of the host if BACKUP_DIR is a path (better
       # on another disk or a NAS: a backup next to the database is lost with the disk). See prod.env.example.
       - ${BACKUP_DIR:-backups}:/app/var/backups
+
+  database:
+    environment:
+      # Required: compose.yaml falls back to a sample password, fine in development only.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in prod.env (see prod.env.example)}
 
 volumes:
   jwt_keys:

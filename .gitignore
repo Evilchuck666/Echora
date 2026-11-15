@@ -20,6 +20,7 @@
 
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
+/config/jwt/test/
 ###< lexik/jwt-authentication-bundle ###
 
 # Local PHPStan configuration: PHPStan reads it instead of phpstan.dist.neon

@@ -44,7 +44,7 @@ docker compose build --pull
 docker compose up --wait
 ```
 
-The API is served at **https://localhost/api**. Accept the auto-generated TLS certificate the first time. Stop it with:
+The API is served at **https://localhost/api**. Accept the auto-generated TLS certificate the first time. The first start also generates the secrets of your machine in `.env.local`, which git ignores. Stop it with:
 
 ```sh
 docker compose down --remove-orphans

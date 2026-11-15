@@ -33,6 +33,7 @@ vendor/
 .editorconfig
 # JWT keys: generated per environment, never baked into an image
 config/jwt/*.pem
+config/jwt/test/
 .env.*.local
 .env.local
 .env.local.php

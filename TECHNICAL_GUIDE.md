@@ -225,7 +225,7 @@ docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml up --wai
 docker compose --env-file prod.env -f compose.yaml -f compose.prod.yaml exec php bin/console app:library:scan
 ```
 
-`prod.env` is ignored by git. Caddy gets a TLS certificate for your domain automatically. If another reverse proxy (nginx, Traefik, Cloudflare...) sits in front of Echora, set `TRUSTED_PROXIES` to its address: sign-in attempts are limited per address, and without it every client would share the proxy's. Open `https://your-domain/` and create your account: the first one becomes the administrator. Do it right away, as until then whoever reaches the server first could; or create it from the console before opening the site, with `... exec php bin/console app:user:create <email> --admin`.
+`prod.env` is ignored by git. Echora refuses to start while `APP_SECRET`, `JWT_PASSPHRASE` or `CADDY_MERCURE_JWT_SECRET` is still `ChangeMe`, empty or shorter than 32 characters, or `POSTGRES_PASSWORD` is still `ChangeMe`: generate each with `openssl rand -hex 32`. A known `APP_SECRET` would let anyone sign URLs to your music. Caddy gets a TLS certificate for your domain automatically. If another reverse proxy (nginx, Traefik, Cloudflare...) sits in front of Echora, set `TRUSTED_PROXIES` to its address: sign-in attempts are limited per address, and without it every client would share the proxy's. Open `https://your-domain/` and create your account: the first one becomes the administrator. Do it right away, as until then whoever reaches the server first could; or create it from the console before opening the site, with `... exec php bin/console app:user:create <email> --admin`.
 
 To update, pull both repositories and run the `build` and `up` commands again: the image is rebuilt with the new API and web client, and migrations run on start.
 
@@ -283,6 +283,8 @@ Run PHP, Composer and console commands inside the `php` container:
 docker compose exec php bin/console about
 docker compose exec php composer require <package>
 ```
+
+No secret is committed: `.env`, `.env.dev` and `.env.test` only hold defaults (and the public values of the tests). On its first start, the container generates `APP_SECRET` and `JWT_PASSPHRASE` for your machine in `.env.local`, ignored by git, and the JWT key pairs in `config/jwt` (the tests have their own, in `config/jwt/test`). Delete `.env.local` and `config/jwt/*.pem` to get new ones (everyone signs in again).
 
 On Linux, files created from inside the container belong to root. Give them back to your user with:
 

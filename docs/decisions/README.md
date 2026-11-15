@@ -31,6 +31,7 @@ deleted.
 | [0018](0018-database-backups.md) | Nightly database backups (pg_dump of the server's version, kept 14 days), restored in one transaction | 2026-11-13 | Accepted |
 | [0019](0019-recently-added-albums.md) | Recently added albums, dated by when a scan first found them (`addedAt`, read from the UUIDv7 ids for existing ones) | 2026-11-14 | Accepted |
 | [0020](0020-downloads-for-offline-playback.md) | Downloads for offline playback: manifests of signed files, original or Opus as the client chooses; no archives | 2026-11-14 | Accepted |
+| [0021](0021-no-secrets-in-committed-files.md) | No secrets in committed `.env` files (generated per machine in `.env.local`); production refuses empty or sample secrets | 2026-11-15 | Accepted |
 
 Not recorded here: Opus streaming for FLAC tracks (`e5a61c1`, 2026-11-10) was designed in this repository; the
 README, the technical guide and CLAUDE.md describe it.
