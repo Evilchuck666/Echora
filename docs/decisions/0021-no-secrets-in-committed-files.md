@@ -54,4 +54,4 @@ them tracked without secrets, and to harden production, was approved by him.
 
 ## Commits
 
-- Not committed yet.
+- `7863f2f` fix(security): keep secrets out of committed .env files and refuse sample ones in production
