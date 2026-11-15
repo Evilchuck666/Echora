@@ -1,7 +1,3 @@
-# Personal Claude Code files
-CLAUDE.local.md
-.claude/settings.local.json
-
 ###> symfony/framework-bundle ###
 /.env.local
 /.env.local.php
@@ -22,12 +18,30 @@ CLAUDE.local.md
 /.phpunit.cache/
 ###< phpunit/phpunit ###
 
-# Production settings for Docker Compose (see prod.env.example)
-/prod.env
-
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
 
+# Production settings for Docker Compose (see prod.env.example)
+/prod.env
+
 # Bruno credentials (see bruno/.env.example)
 /bruno/.env
+
+# Editors: only the shared VS Code files in .vscode/ are tracked
+/.vscode/*
+!/.vscode/settings.json
+!/.vscode/tasks.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+/.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal Claude Code files
+/CLAUDE.local.md
+/.claude/settings.local.json

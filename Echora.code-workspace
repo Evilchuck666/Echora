@@ -1,10 +1,18 @@
 {
-  // Project settings and recommended extensions live in .vscode/, so they also apply when opening the folder directly.
   "folders": [
     {
       "name": "Echora API",
       "path": "."
     }
   ],
-  "settings": {}
+  // The project settings, the Xdebug configuration and the recommended extensions live in .vscode/, so they also apply
+  // when the folder is opened directly. VS Code ignores window-wide settings in .vscode/settings.json when the project is
+  // opened through this file, so those are repeated here: keep both copies in step.
+  "settings": {
+    // PHP runs inside Docker, not on the host: disable the built-in features that need a local php binary.
+    "php.validate.enable": false,
+    "php.suggest.basic": false,
+    // Must match the PHP version of the Docker image (Dockerfile: dunglas/frankenphp:1-php8.5).
+    "intelephense.environment.phpVersion": "8.5.0"
+  }
 }
